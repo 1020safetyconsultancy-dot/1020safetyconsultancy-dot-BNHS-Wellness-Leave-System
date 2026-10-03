@@ -43,12 +43,17 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 </section>
 <section id="app" style="display:none">
 <div class="card"><div class="headrow"><div class="identity"><div class="muted">Signed in as</div><strong id="teacherName">Teacher</strong><div id="accountEmail" class="muted"></div><div class="badges"><span class="badge" id="usedBadge">0/5 days used</span><span class="badge" id="remainBadge">5 remaining</span></div></div><button class="btn secondary" id="logoutBtn">Sign Out</button></div></div>
-<div class="card"><div class="plotbar"><div class="field"><label>Selected Wellness Leave Date</label><input id="leaveDate" type="date"></div><button class="btn primary" id="plotBtn">Plot My Wellness Leave</button></div><div class="notice"><b>Rules:</b> maximum 5 Wellness Leave days per teacher; maximum 3 consecutive <b>school days</b>; maximum 2 teachers per date; Saturdays and Sundays are unavailable.</div><div id="msg"></div></div>
+<div class="card"><div class="plotbar">
+<div class="field"><label>Leave Type</label><select id="leaveType" style="padding:12px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px"><option value="wellness">Wellness Leave</option><option value="sick">Sick Leave</option></select></div>
+<div class="field"><label>Selected Leave Date</label><input id="leaveDate" type="date"></div>
+<button class="btn primary" id="plotBtn">Plot My Leave</button>
+</div>
+<div class="notice"><b>Wellness Leave rules:</b> maximum 5 days per teacher, maximum 3 consecutive school days, and maximum 2 Wellness Leave slots per date. <b>Sick Leave</b> is recorded separately and does not reduce the 5-day Wellness Leave quota. Saturdays and Sundays are unavailable.</div><div id="msg"></div></div>
 <div class="card"><div class="calendarHead"><div><h2 id="monthTitle" style="margin:0">Wellness Leave Calendar</h2><div class="muted">Click an available school day to select it.</div></div><div class="nav"><button class="btn secondary" id="prevBtn">‹ Previous</button><button class="btn secondary" id="todayBtn">Today</button><button class="btn secondary" id="nextBtn">Next ›</button></div></div><div class="calendarScroll"><div id="calendar" class="grid"></div></div></div>
 <div class="card">
   <div class="calendarHead">
-    <div><h3 style="margin:0">Relieving Teachers by Wellness Leave Date</h3>
-    <div class="muted">If you have several Wellness Leave dates, choose the specific leave date first. Relieving assignments are saved separately for every date.</div></div>
+    <div><h3 style="margin:0">Relieving Teachers by Leave Date</h3>
+    <div class="muted">Choose any plotted Wellness Leave or Sick Leave date. Relieving assignments are saved separately for every date.</div></div>
   </div>
   <div class="plotbar" style="margin-top:14px">
     <div class="field" style="min-width:260px">
@@ -133,7 +138,7 @@ async function refresh(){
   {data:as,error:ae}
  ]=await Promise.all([
   sb.from('wellness_portal_profiles').select('user_id,teacher_name,role,active').eq('active',true),
-  sb.from('wellness_portal_leave').select('id,user_id,leave_date,created_at').order('leave_date'),
+  sb.from('wellness_portal_leave').select('id,user_id,leave_date,leave_type,created_at').order('leave_date'),
   sb.from('wellness_portal_schedule').select('id,teacher_name,day_of_week,period,section,subject,grade_level,active').eq('active',true),
   sb.from('wellness_portal_reliever_assignments').select('id,leave_date,schedule_id,absent_teacher_name,reliever_teacher_name,assigned_by,created_at')
  ]);
@@ -149,17 +154,20 @@ function subscribe(){
 }
 function render(){
  const mine=leaves.filter(x=>x.user_id===user.id).sort((a,b)=>a.leave_date.localeCompare(b.leave_date));
- $('usedBadge').textContent=mine.length+'/5 days used';$('remainBadge').textContent=Math.max(0,5-mine.length)+' remaining';
+ const wellnessMine=mine.filter(x=>x.leave_type==='wellness');
+ const sickMine=mine.filter(x=>x.leave_type==='sick');
+ $('usedBadge').textContent=wellnessMine.length+'/5 Wellness days used';
+ $('remainBadge').textContent=Math.max(0,5-wellnessMine.length)+' Wellness remaining • '+sickMine.length+' Sick Leave';
  renderLeaveDateSelector(mine);
  renderCalendar();renderRelievers();renderMyDaySchedule();
- $('myLeaves').innerHTML=mine.length?'<table><tr><th>Date</th><th>Day</th><th>Action</th></tr>'+mine.map(x=>'<tr><td><b>'+esc(x.leave_date)+'</b></td><td>'+new Date(x.leave_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'})+'</td><td><button class="btn danger" onclick="removeLeave('+x.id+')">Remove</button></td></tr>').join('')+'</table>':'<p class="muted">You have not plotted any Wellness Leave yet.</p>'
+ $('myLeaves').innerHTML=mine.length?'<table><tr><th>Date</th><th>Leave Type</th><th>Day</th><th>Action</th></tr>'+mine.map(x=>'<tr><td><b>'+esc(x.leave_date)+'</b></td><td><span class="badge">'+(x.leave_type==='sick'?'SICK LEAVE':'WELLNESS LEAVE')+'</span></td><td>'+new Date(x.leave_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'})+'</td><td><button class="btn danger" onclick="removeLeave('+x.id+')">Remove</button></td></tr>').join('')+'</table>':'<p class="muted">You have not plotted any leave yet.</p>'
 }
 function renderCalendar(){
  const y=cursor.getFullYear(),m=cursor.getMonth(),first=new Date(y,m,1),offset=first.getDay(),days=new Date(y,m+1,0).getDate(),selected=$('leaveDate').value;
  $('monthTitle').textContent=first.toLocaleDateString('en-US',{month:'long',year:'numeric'})+' — Wellness Leave Slots';
  let h=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(x=>'<div class="weekday">'+x+'</div>').join('');
  for(let i=0;i<42;i++){const n=i-offset+1;if(n<1||n>days){h+='<div class="day blank"></div>';continue}
-  const d=y+'-'+String(m+1).padStart(2,'0')+'-'+String(n).padStart(2,'0'),wk=weekend(d),rows=leaves.filter(x=>x.leave_date===d),left=Math.max(0,2-rows.length),status=wk?'weekend':left===2?'open':left===1?'partial':'full',label=wk?'WEEKEND — unavailable':left===0?'FULL — 0 slots':left+' slot'+(left===1?'':'s')+' available',names=rows.map(x=>'• '+esc(profiles[x.user_id]?.teacher_name||'Teacher')).join('<br>');
+  const d=y+'-'+String(m+1).padStart(2,'0')+'-'+String(n).padStart(2,'0'),wk=weekend(d),rows=leaves.filter(x=>x.leave_date===d),wellnessRows=rows.filter(x=>x.leave_type==='wellness'),sickRows=rows.filter(x=>x.leave_type==='sick'),left=Math.max(0,2-wellnessRows.length),status=wk?'weekend':left===2?'open':left===1?'partial':'full',label=wk?'WEEKEND — unavailable':left===0?'Wellness FULL — 0 slots':left+' Wellness slot'+(left===1?'':'s')+' available',names=rows.map(x=>'• '+esc(profiles[x.user_id]?.teacher_name||'Teacher')+' — '+(x.leave_type==='sick'?'Sick':'Wellness')).join('<br>');
   h+='<button class="day '+status+(d===selected&&!wk?' selected':'')+'" '+(wk||left===0?'disabled':'data-date="'+d+'"')+'><span class="num">'+n+'</span>'+(d===today()?'<span class="today">TODAY</span>':'')+'<br><span class="pill '+status+'">'+label+'</span>'+(names?'<div class="names">'+names+'</div>':'')+'</button>'
  }
  $('calendar').innerHTML=h;document.querySelectorAll('.day[data-date]').forEach(b=>b.addEventListener('click',()=>{$('leaveDate').value=b.dataset.date;renderCalendar();setMsg('<b>'+esc(b.dataset.date)+'</b> selected.')}))
@@ -178,14 +186,15 @@ function renderLeaveDateSelector(mine){
    return;
  }
  const current=$('leaveDate').value;
- sel.innerHTML=dates.map(d=>'<option value="'+d+'" '+(d===current?'selected':'')+'>'+esc(niceDate(d))+'</option>').join('');
+ sel.innerHTML=dates.map(d=>{const row=mine.find(x=>x.leave_date===d);const typ=row?.leave_type==='sick'?'Sick Leave':'Wellness Leave';return '<option value="'+d+'" '+(d===current?'selected':'')+'>'+esc(niceDate(d))+' — '+typ+'</option>'}).join('');
  if(!dates.includes(current)){
    sel.value=dates[0];
  }
  chips.innerHTML=dates.map((d,i)=>{
    const classCount=schedules.filter(s=>s.teacher_name===profile.teacher_name&&s.day_of_week===dayName(d)&&s.active!==false).length;
    const assignedCount=assignments.filter(a=>a.leave_date===d&&a.absent_teacher_name===profile.teacher_name).length;
-   return '<button type="button" class="badge" style="border:0;cursor:pointer'+(d===$('leaveDate').value?';outline:2px solid #1769d2':'')+'" onclick="switchRelieverDate(\''+d+'\')">'+esc(niceDate(d))+' • '+assignedCount+'/'+classCount+' assigned</button>';
+   const row=mine.find(x=>x.leave_date===d);const typ=row?.leave_type==='sick'?'Sick':'Wellness';
+   return '<button type="button" class="badge" style="border:0;cursor:pointer'+(d===$('leaveDate').value?';outline:2px solid #1769d2':'')+'" onclick="switchRelieverDate(\''+d+'\')">'+esc(niceDate(d))+' • '+typ+' • '+assignedCount+'/'+classCount+' assigned</button>';
  }).join('');
 }
 function switchRelieverDate(d){
@@ -246,7 +255,8 @@ function renderRelievers(){
    box.innerHTML='<div class="notice ok"><b>No affected classes found.</b> '+esc(profile.teacher_name)+' has no encoded classes on '+esc(day)+'.</div>';
    return;
  }
- let html='<div class="notice ok"><b>Assigning relievers for: '+esc(niceDate(date))+'</b></div><div class="tablewrap"><table><tr><th>Period</th><th>Class / Subject</th><th>Grade</th><th>Relieving Teacher</th><th>Status</th></tr>';
+ const leaveRow=leaves.find(l=>l.user_id===user.id&&l.leave_date===date);
+ let html='<div class="notice ok"><b>Assigning relievers for: '+esc(niceDate(date))+' — '+(leaveRow?.leave_type==='sick'?'Sick Leave':'Wellness Leave')+'</b></div><div class="tablewrap"><table><tr><th>Period</th><th>Class / Subject</th><th>Grade</th><th>Relieving Teacher</th><th>Status</th></tr>';
  affected.forEach(e=>{
    const assigned=assignments.find(a=>a.leave_date===date&&a.schedule_id===e.id);
    const opts=candidateRelievers(e,date);
@@ -294,8 +304,9 @@ async function addSchedule(){
 }
 async function plot(){
  const d=$('leaveDate').value;if(!d){setMsg('Please choose a date.','err');return}if(weekend(d)){setMsg('Saturday and Sunday are unavailable.','err');return}
- $('plotBtn').disabled=true;const {error}=await sb.from('wellness_portal_leave').insert({user_id:user.id,leave_date:d});$('plotBtn').disabled=false;
- if(error)setMsg(esc(error.message),'err');else{setMsg('<b>Wellness Leave plotted successfully.</b> Your leave is scheduled on '+esc(d)+'.','ok');await refresh()}
+ const leaveType=$('leaveType').value;
+ $('plotBtn').disabled=true;const {error}=await sb.from('wellness_portal_leave').insert({user_id:user.id,leave_date:d,leave_type:leaveType});$('plotBtn').disabled=false;
+ if(error)setMsg(esc(error.message),'err');else{setMsg('<b>'+(leaveType==='sick'?'Sick Leave':'Wellness Leave')+' plotted successfully.</b> Your leave is scheduled on '+esc(d)+'.','ok');await refresh()}
 }
 async function removeLeave(id){
  const row=leaves.find(x=>x.id===id);if(!row||row.user_id!==user.id)return;
@@ -306,6 +317,7 @@ $('prevBtn').onclick=()=>{cursor=new Date(cursor.getFullYear(),cursor.getMonth()
 $('nextBtn').onclick=()=>{cursor=new Date(cursor.getFullYear(),cursor.getMonth()+1,1);renderCalendar()};
 $('todayBtn').onclick=()=>{cursor=new Date();cursor.setDate(1);$('leaveDate').value=today();renderCalendar()};
 $('leaveDate').onchange=()=>{const v=$('leaveDate').value;if(v){const d=new Date(v+'T12:00:00');cursor=new Date(d.getFullYear(),d.getMonth(),1)}renderCalendar();renderRelievers();renderMyDaySchedule()};
+$('leaveType').onchange=()=>{$('plotBtn').textContent=$('leaveType').value==='sick'?'Plot My Sick Leave':'Plot My Wellness Leave'};
 $('addScheduleBtn').onclick=addSchedule;
 $('useSelectedLeaveDateBtn').onclick=()=>{
  const d=$('relieverDateSelect').value;
