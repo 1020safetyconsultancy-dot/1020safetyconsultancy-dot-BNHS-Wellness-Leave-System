@@ -48,7 +48,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 <div class="card">
   <div class="calendarHead">
     <div><h3 style="margin:0">Relieving Teachers for Selected Date</h3>
-    <div class="muted">Affected classes are matched with available teachers who are free during the period. Same-grade teachers are prioritized and fewer relief assignments are ranked first.</div></div>
+    <div class="muted">Affected classes are matched with available teachers who are free during the period. Available teachers are taken directly from the imported 2026–2027 vacancy-system schedule. Teachers who are free during the period are listed, with fewer relieving assignments ranked first.</div></div>
   </div>
   <div id="relieverPanel" style="margin-top:12px"></div>
 </div>
@@ -65,6 +65,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
   </div>
   <div id="scheduleMsg"></div>
 </div>
+<div class="card"><h3>My Schedule for Selected Date</h3><div id="myDaySchedule" class="tablewrap"></div></div>
 <div class="card"><h3>My Wellness Leave</h3><div id="myLeaves" class="tablewrap"></div></div>
 </section>
 </div>
@@ -139,7 +140,7 @@ function subscribe(){
 }
 function render(){
  const mine=leaves.filter(x=>x.user_id===user.id).sort((a,b)=>a.leave_date.localeCompare(b.leave_date));
- $('usedBadge').textContent=mine.length+'/5 days used';$('remainBadge').textContent=Math.max(0,5-mine.length)+' remaining';renderCalendar();renderRelievers();
+ $('usedBadge').textContent=mine.length+'/5 days used';$('remainBadge').textContent=Math.max(0,5-mine.length)+' remaining';renderCalendar();renderRelievers();renderMyDaySchedule();
  $('myLeaves').innerHTML=mine.length?'<table><tr><th>Date</th><th>Day</th><th>Action</th></tr>'+mine.map(x=>'<tr><td><b>'+esc(x.leave_date)+'</b></td><td>'+new Date(x.leave_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'})+'</td><td><button class="btn danger" onclick="removeLeave('+x.id+')">Remove</button></td></tr>').join('')+'</table>':'<p class="muted">You have not plotted any Wellness Leave yet.</p>'
 }
 function renderCalendar(){
@@ -153,6 +154,20 @@ function renderCalendar(){
  $('calendar').innerHTML=h;document.querySelectorAll('.day[data-date]').forEach(b=>b.addEventListener('click',()=>{$('leaveDate').value=b.dataset.date;renderCalendar();setMsg('<b>'+esc(b.dataset.date)+'</b> selected.')}))
 }
 function dayName(date){return new Date(date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'})}
+function renderMyDaySchedule(){
+ const box=$('myDaySchedule'); if(!box||!profile)return;
+ const date=$('leaveDate').value;
+ if(!date){box.innerHTML='<p class="muted">Choose a date to view your classes.</p>';return}
+ const day=dayName(date);
+ const rows=schedules.filter(s=>s.teacher_name===profile.teacher_name&&s.day_of_week===day&&s.active!==false)
+  .sort((a,b)=>String(a.period).localeCompare(String(b.period)));
+ box.innerHTML=rows.length
+  ? '<table><tr><th>Period</th><th>Section</th><th>Subject</th><th>Coverage</th></tr>'+rows.map(e=>{
+      const a=assignments.find(x=>x.leave_date===date&&x.schedule_id===e.id);
+      return '<tr><td><b>'+esc(e.period)+'</b></td><td>'+esc(e.section)+'</td><td>'+esc(e.subject||'')+'</td><td>'+(a?'<b>'+esc(a.reliever_teacher_name)+'</b>':'<span class="muted">Not assigned</span>')+'</td></tr>'
+    }).join('')+'</table>'
+  : '<p class="muted">No encoded classes for '+esc(day)+'.</p>';
+}
 function reliefCount(name,date){return assignments.filter(a=>a.leave_date===date&&a.reliever_teacher_name===name).length}
 function teacherOnLeave(name,date){
  return leaves.some(l=>l.leave_date===date && (profiles[l.user_id]?.teacher_name||'')===name)
@@ -241,7 +256,7 @@ window.removeLeave=removeLeave;$('plotBtn').onclick=plot;$('logoutBtn').onclick=
 $('prevBtn').onclick=()=>{cursor=new Date(cursor.getFullYear(),cursor.getMonth()-1,1);renderCalendar()};
 $('nextBtn').onclick=()=>{cursor=new Date(cursor.getFullYear(),cursor.getMonth()+1,1);renderCalendar()};
 $('todayBtn').onclick=()=>{cursor=new Date();cursor.setDate(1);$('leaveDate').value=today();renderCalendar()};
-$('leaveDate').onchange=()=>{const v=$('leaveDate').value;if(v){const d=new Date(v+'T12:00:00');cursor=new Date(d.getFullYear(),d.getMonth(),1)}renderCalendar();renderRelievers()};
+$('leaveDate').onchange=()=>{const v=$('leaveDate').value;if(v){const d=new Date(v+'T12:00:00');cursor=new Date(d.getFullYear(),d.getMonth(),1)}renderCalendar();renderRelievers();renderMyDaySchedule()};
 $('addScheduleBtn').onclick=addSchedule;
 start();
 </script>
