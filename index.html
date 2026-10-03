@@ -91,16 +91,16 @@ $('signupForm').addEventListener('submit',async e=>{
  }
 });
 async function enter(u){
- user=u;const {data:p,error}=await sb.from('profiles').select('user_id,teacher_name,role,active').eq('user_id',u.id).single();
+ user=u;const {data:p,error}=await sb.from('bnhs_profiles').select('user_id,teacher_name,role,active').eq('user_id',u.id).single();
  if(error||!p||!p.active){await sb.auth.signOut();$('loginCard').style.display='block';$('loginMsg').innerHTML='<div class="notice err">Your account is not linked to an active BNHS teacher profile. Please contact the administrator.</div>';return}
  profile=p;$('loginCard').style.display='none';$('app').style.display='block';$('teacherName').textContent=p.teacher_name;$('accountEmail').textContent=u.email||'';$('leaveDate').value=today();cursor=new Date();cursor.setDate(1);await refresh();subscribe()
 }
 async function refresh(){
- const [{data:ps,error:pe},{data:ls,error:le}]=await Promise.all([sb.from('profiles').select('user_id,teacher_name,role,active').eq('active',true),sb.from('wellness_leave').select('id,user_id,leave_date,created_at').order('leave_date')]);
+ const [{data:ps,error:pe},{data:ls,error:le}]=await Promise.all([sb.from('bnhs_profiles').select('user_id,teacher_name,role,active').eq('active',true),sb.from('bnhs_wellness_leave').select('id,user_id,leave_date,created_at').order('leave_date')]);
  if(pe||le){setMsg('Unable to load online Wellness Leave data. '+esc((pe||le).message),'err');return}
  profiles=Object.fromEntries((ps||[]).map(x=>[x.user_id,x]));leaves=ls||[];render()
 }
-function subscribe(){sb.channel('bnhs-wellness-live').on('postgres_changes',{event:'*',schema:'public',table:'wellness_leave'},()=>refresh()).subscribe()}
+function subscribe(){sb.channel('bnhs-wellness-live').on('postgres_changes',{event:'*',schema:'public',table:'bnhs_wellness_leave'},()=>refresh()).subscribe()}
 function render(){
  const mine=leaves.filter(x=>x.user_id===user.id).sort((a,b)=>a.leave_date.localeCompare(b.leave_date));
  $('usedBadge').textContent=mine.length+'/5 days used';$('remainBadge').textContent=Math.max(0,5-mine.length)+' remaining';renderCalendar();
@@ -118,12 +118,12 @@ function renderCalendar(){
 }
 async function plot(){
  const d=$('leaveDate').value;if(!d){setMsg('Please choose a date.','err');return}if(weekend(d)){setMsg('Saturday and Sunday are unavailable.','err');return}
- $('plotBtn').disabled=true;const {error}=await sb.from('wellness_leave').insert({user_id:user.id,leave_date:d});$('plotBtn').disabled=false;
+ $('plotBtn').disabled=true;const {error}=await sb.from('bnhs_wellness_leave').insert({user_id:user.id,leave_date:d});$('plotBtn').disabled=false;
  if(error)setMsg(esc(error.message),'err');else{setMsg('<b>Wellness Leave plotted successfully.</b> Your leave is scheduled on '+esc(d)+'.','ok');await refresh()}
 }
 async function removeLeave(id){
  const row=leaves.find(x=>x.id===id);if(!row||row.user_id!==user.id)return;
- const {error}=await sb.from('wellness_leave').delete().eq('id',id);if(error)setMsg(esc(error.message),'err');else{setMsg('Wellness Leave removed.','ok');await refresh()}
+ const {error}=await sb.from('bnhs_wellness_leave').delete().eq('id',id);if(error)setMsg(esc(error.message),'err');else{setMsg('Wellness Leave removed.','ok');await refresh()}
 }
 window.removeLeave=removeLeave;$('plotBtn').onclick=plot;$('logoutBtn').onclick=()=>sb.auth.signOut();
 $('prevBtn').onclick=()=>{cursor=new Date(cursor.getFullYear(),cursor.getMonth()-1,1);renderCalendar()};
