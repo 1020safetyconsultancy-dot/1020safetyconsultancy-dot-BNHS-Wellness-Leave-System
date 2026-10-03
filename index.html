@@ -76,8 +76,7 @@ $('signupForm').addEventListener('submit',async e=>{
    email,
    password,
    options:{
-     data:{teacher_name:teacherName,activation_code:activationCode},
-     emailRedirectTo:window.location.href.split('#')[0]
+     data:{teacher_name:teacherName,activation_code:activationCode}
    }
  });
  if(error){
@@ -88,7 +87,7 @@ $('signupForm').addEventListener('submit',async e=>{
    $('signupMsg').innerHTML='<div class="notice ok">Account activated successfully. Signing you in…</div>';
    await enter(data.user);
  }else{
-   $('signupMsg').innerHTML='<div class="notice ok"><b>Account activated.</b> Please check your email and confirm the address if Supabase asks for confirmation, then return here and sign in.</div>';
+   $('signupMsg').innerHTML='<div class="notice ok"><b>Account activated.</b> Please check your email and confirm the address if requested. After confirmation, return to this Wellness Leave portal and sign in.</div>';
  }
 });
 async function enter(u){
