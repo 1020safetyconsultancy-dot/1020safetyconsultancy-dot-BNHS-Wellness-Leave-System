@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BNHS Wellness Leave Portal</title>
+<style>
+:root{--blue:#0b5fc6;--dark:#12355b;--border:#dbe5ef;--muted:#64748b;--bg:#f4f8fc;--green:#166534;--red:#991b1b;--amber:#92400e}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:#1e293b}
+.top{background:linear-gradient(135deg,#0a4f9e,#1675d1);color:#fff;padding:20px;box-shadow:0 3px 12px #0002}
+.topin{max-width:1180px;margin:auto;display:flex;gap:14px;align-items:center}.seal{width:58px;height:58px;border-radius:50%;background:#fff;color:#0b5fc6;display:grid;place-items:center;font-weight:900;font-size:18px}
+.top h1{margin:0;font-size:22px}.top p{margin:4px 0 0;opacity:.9;font-size:13px}
+.wrap{max-width:1180px;margin:22px auto;padding:0 16px}.card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:18px;box-shadow:0 8px 24px #12355b0d;margin-bottom:16px}
+.login{max-width:460px;margin:60px auto}.field{display:flex;flex-direction:column;gap:6px;margin:12px 0}.field label{font-weight:700;font-size:13px}.field input{padding:12px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px}
+.btn{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:pointer}.primary{background:var(--blue);color:#fff}.secondary{background:#e8f1fb;color:#174ea6}.danger{background:#fee2e2;color:#991b1b}.btn:disabled{opacity:.55;cursor:not-allowed}
+.muted{color:var(--muted)}.notice{padding:12px 14px;border-radius:10px;background:#eef6ff;border:1px solid #bfdbfe;color:#174ea6;margin:10px 0}.err{background:#fff1f2;border-color:#fecdd3;color:#9f1239}.ok{background:#ecfdf5;border-color:#a7f3d0;color:#166534}
+.headrow,.calendarHead{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.identity strong{font-size:18px}.badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.badge{display:inline-block;padding:6px 10px;border-radius:999px;background:#eaf2fb;color:#174ea6;font-size:12px;font-weight:800}
+.plotbar{display:flex;gap:10px;align-items:end;flex-wrap:wrap}.plotbar .field{margin:0;min-width:220px}.nav{display:flex;gap:7px;flex-wrap:wrap}.calendarScroll{overflow:auto}
+.grid{min-width:780px;display:grid;grid-template-columns:repeat(7,1fr);gap:7px;margin-top:12px}.weekday{text-align:center;font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;padding:6px}
+.day{min-height:118px;border:1px solid #dce5ef;border-radius:12px;background:#fbfdff;padding:9px;cursor:pointer;text-align:left;position:relative}.day:hover:not(:disabled){border-color:#6fa8e8;box-shadow:0 4px 12px #1769d216}.day.blank{visibility:hidden}.day.weekend{background:#f1f5f9;color:#94a3b8;cursor:not-allowed}.day.open{background:#f3fbf6;border-color:#bbf7d0}.day.partial{background:#fffbed;border-color:#fde68a}.day.full{background:#fff4f4;border-color:#fecaca;cursor:not-allowed}.day.selected{outline:2px solid #1769d2}.num{font-weight:800;color:#17375e}
+.pill{display:inline-block;margin-top:7px;padding:4px 7px;border-radius:999px;font-size:10px;font-weight:800}.pill.open{background:#dcfce7;color:#166534}.pill.partial{background:#fef3c7;color:#92400e}.pill.full{background:#fee2e2;color:#991b1b}.pill.weekend{background:#e2e8f0;color:#64748b}
+.names{margin-top:7px;font-size:10.5px;color:#475569;line-height:1.35}.today{position:absolute;right:7px;top:7px;font-size:9px;font-weight:800;color:#1769d2}.tablewrap{overflow:auto}
+table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px solid #e2e8f0;text-align:left;font-size:13px}th{background:#f8fafc;color:#334155}
+@media(max-width:600px){.top h1{font-size:18px}.wrap{padding:0 10px}.card{padding:13px}.plotbar .field{width:100%}}
+</style>
+</head>
+<body>
+<header class="top"><div class="topin"><div class="seal">BNHS</div><div><h1>BINGAO NATIONAL HIGH SCHOOL</h1><p>Online Wellness Leave Portal • School Year 2026–2027</p></div></div></header>
+<div class="wrap">
+<section id="setupCard" class="card login" style="display:none"><h2>Online setup required</h2><p class="muted">The portal is hosted, but Supabase is not configured yet. Edit <b>online-config.js</b> with your Supabase URL and browser-safe publishable key.</p></section>
+<section id="loginCard" class="card login" style="display:none">
+<h2>Teacher Login</h2><p class="muted">Use the account issued by the school administrator.</p>
+<form id="loginForm"><div class="field"><label>Email / Account</label><input id="email" type="email" required autocomplete="username"></div><div class="field"><label>Password</label><input id="password" type="password" required autocomplete="current-password"></div><button class="btn primary" style="width:100%">Sign In</button></form><div id="loginMsg"></div>
+</section>
+<section id="app" style="display:none">
+<div class="card"><div class="headrow"><div class="identity"><div class="muted">Signed in as</div><strong id="teacherName">Teacher</strong><div id="accountEmail" class="muted"></div><div class="badges"><span class="badge" id="usedBadge">0/5 days used</span><span class="badge" id="remainBadge">5 remaining</span></div></div><button class="btn secondary" id="logoutBtn">Sign Out</button></div></div>
+<div class="card"><div class="plotbar"><div class="field"><label>Selected Wellness Leave Date</label><input id="leaveDate" type="date"></div><button class="btn primary" id="plotBtn">Plot My Wellness Leave</button></div><div class="notice"><b>Rules:</b> maximum 5 Wellness Leave days per teacher; maximum 3 consecutive <b>school days</b>; maximum 2 teachers per date; Saturdays and Sundays are unavailable.</div><div id="msg"></div></div>
+<div class="card"><div class="calendarHead"><div><h2 id="monthTitle" style="margin:0">Wellness Leave Calendar</h2><div class="muted">Click an available school day to select it.</div></div><div class="nav"><button class="btn secondary" id="prevBtn">‹ Previous</button><button class="btn secondary" id="todayBtn">Today</button><button class="btn secondary" id="nextBtn">Next ›</button></div></div><div class="calendarScroll"><div id="calendar" class="grid"></div></div></div>
+<div class="card"><h3>My Wellness Leave</h3><div id="myLeaves" class="tablewrap"></div></div>
+</section>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.95.0/dist/umd/supabase.min.js"></script>
+<script src="online-config.js"></script>
+<script>
+const cfg=window.BNHS_ONLINE_CONFIG||{};let sb=null,user=null,profile=null,profiles={},leaves=[],cursor=new Date();cursor.setDate(1);
+const $=id=>document.getElementById(id),iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'),today=()=>iso(new Date());
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function configured(){return cfg.supabaseUrl&&cfg.supabasePublishableKey&&!cfg.supabaseUrl.includes('YOUR_')&&!cfg.supabasePublishableKey.includes('YOUR_')}
+function weekend(date){const d=new Date(date+'T12:00:00').getDay();return d===0||d===6}
+function setMsg(t,kind=''){ $('msg').innerHTML=t?'<div class="notice '+kind+'">'+t+'</div>':'' }
+async function start(){
+ if(!configured()){$('setupCard').style.display='block';return}
+ sb=window.supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+ const {data:{session}}=await sb.auth.getSession();if(session)await enter(session.user);else $('loginCard').style.display='block';
+ sb.auth.onAuthStateChange(async(e,s)=>{if(e==='SIGNED_OUT')location.reload();else if(s?.user&&(!user||user.id!==s.user.id))await enter(s.user)})
+}
+$('loginForm').addEventListener('submit',async e=>{e.preventDefault();$('loginMsg').innerHTML='';const {data,error}=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error)$('loginMsg').innerHTML='<div class="notice err">'+esc(error.message)+'</div>';else if(data.user)await enter(data.user)});
+async function enter(u){
+ user=u;const {data:p,error}=await sb.from('profiles').select('user_id,teacher_name,role,active').eq('user_id',u.id).single();
+ if(error||!p||!p.active){await sb.auth.signOut();$('loginCard').style.display='block';$('loginMsg').innerHTML='<div class="notice err">Your account is not linked to an active BNHS teacher profile. Please contact the administrator.</div>';return}
+ profile=p;$('loginCard').style.display='none';$('app').style.display='block';$('teacherName').textContent=p.teacher_name;$('accountEmail').textContent=u.email||'';$('leaveDate').value=today();cursor=new Date();cursor.setDate(1);await refresh();subscribe()
+}
+async function refresh(){
+ const [{data:ps,error:pe},{data:ls,error:le}]=await Promise.all([sb.from('profiles').select('user_id,teacher_name,role,active').eq('active',true),sb.from('wellness_leave').select('id,user_id,leave_date,created_at').order('leave_date')]);
+ if(pe||le){setMsg('Unable to load online Wellness Leave data. '+esc((pe||le).message),'err');return}
+ profiles=Object.fromEntries((ps||[]).map(x=>[x.user_id,x]));leaves=ls||[];render()
+}
+function subscribe(){sb.channel('bnhs-wellness-live').on('postgres_changes',{event:'*',schema:'public',table:'wellness_leave'},()=>refresh()).subscribe()}
+function render(){
+ const mine=leaves.filter(x=>x.user_id===user.id).sort((a,b)=>a.leave_date.localeCompare(b.leave_date));
+ $('usedBadge').textContent=mine.length+'/5 days used';$('remainBadge').textContent=Math.max(0,5-mine.length)+' remaining';renderCalendar();
+ $('myLeaves').innerHTML=mine.length?'<table><tr><th>Date</th><th>Day</th><th>Action</th></tr>'+mine.map(x=>'<tr><td><b>'+esc(x.leave_date)+'</b></td><td>'+new Date(x.leave_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'})+'</td><td><button class="btn danger" onclick="removeLeave('+x.id+')">Remove</button></td></tr>').join('')+'</table>':'<p class="muted">You have not plotted any Wellness Leave yet.</p>'
+}
+function renderCalendar(){
+ const y=cursor.getFullYear(),m=cursor.getMonth(),first=new Date(y,m,1),offset=first.getDay(),days=new Date(y,m+1,0).getDate(),selected=$('leaveDate').value;
+ $('monthTitle').textContent=first.toLocaleDateString('en-US',{month:'long',year:'numeric'})+' — Wellness Leave Slots';
+ let h=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(x=>'<div class="weekday">'+x+'</div>').join('');
+ for(let i=0;i<42;i++){const n=i-offset+1;if(n<1||n>days){h+='<div class="day blank"></div>';continue}
+  const d=y+'-'+String(m+1).padStart(2,'0')+'-'+String(n).padStart(2,'0'),wk=weekend(d),rows=leaves.filter(x=>x.leave_date===d),left=Math.max(0,2-rows.length),status=wk?'weekend':left===2?'open':left===1?'partial':'full',label=wk?'WEEKEND — unavailable':left===0?'FULL — 0 slots':left+' slot'+(left===1?'':'s')+' available',names=rows.map(x=>'• '+esc(profiles[x.user_id]?.teacher_name||'Teacher')).join('<br>');
+  h+='<button class="day '+status+(d===selected&&!wk?' selected':'')+'" '+(wk||left===0?'disabled':'data-date="'+d+'"')+'><span class="num">'+n+'</span>'+(d===today()?'<span class="today">TODAY</span>':'')+'<br><span class="pill '+status+'">'+label+'</span>'+(names?'<div class="names">'+names+'</div>':'')+'</button>'
+ }
+ $('calendar').innerHTML=h;document.querySelectorAll('.day[data-date]').forEach(b=>b.addEventListener('click',()=>{$('leaveDate').value=b.dataset.date;renderCalendar();setMsg('<b>'+esc(b.dataset.date)+'</b> selected.')}))
+}
+async function plot(){
+ const d=$('leaveDate').value;if(!d){setMsg('Please choose a date.','err');return}if(weekend(d)){setMsg('Saturday and Sunday are unavailable.','err');return}
+ $('plotBtn').disabled=true;const {error}=await sb.from('wellness_leave').insert({user_id:user.id,leave_date:d});$('plotBtn').disabled=false;
+ if(error)setMsg(esc(error.message),'err');else{setMsg('<b>Wellness Leave plotted successfully.</b> Your leave is scheduled on '+esc(d)+'.','ok');await refresh()}
+}
+async function removeLeave(id){
+ const row=leaves.find(x=>x.id===id);if(!row||row.user_id!==user.id)return;
+ const {error}=await sb.from('wellness_leave').delete().eq('id',id);if(error)setMsg(esc(error.message),'err');else{setMsg('Wellness Leave removed.','ok');await refresh()}
+}
+window.removeLeave=removeLeave;$('plotBtn').onclick=plot;$('logoutBtn').onclick=()=>sb.auth.signOut();
+$('prevBtn').onclick=()=>{cursor=new Date(cursor.getFullYear(),cursor.getMonth()-1,1);renderCalendar()};
+$('nextBtn').onclick=()=>{cursor=new Date(cursor.getFullYear(),cursor.getMonth()+1,1);renderCalendar()};
+$('todayBtn').onclick=()=>{cursor=new Date();cursor.setDate(1);$('leaveDate').value=today();renderCalendar()};
+$('leaveDate').onchange=()=>{const v=$('leaveDate').value;if(v){const d=new Date(v+'T12:00:00');cursor=new Date(d.getFullYear(),d.getMonth(),1)}renderCalendar()};
+start();
+</script>
+</body>
+</html>
