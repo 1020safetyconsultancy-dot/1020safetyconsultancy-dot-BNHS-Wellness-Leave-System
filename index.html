@@ -29,8 +29,17 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 <div class="wrap">
 <section id="setupCard" class="card login" style="display:none"><h2>Online setup required</h2><p class="muted">The portal is hosted, but Supabase is not configured yet. Edit <b>online-config.js</b> with your Supabase URL and browser-safe publishable key.</p></section>
 <section id="loginCard" class="card login" style="display:none">
-<h2>Teacher Login</h2><p class="muted">Use the account issued by the school administrator.</p>
-<form id="loginForm"><div class="field"><label>Email / Account</label><input id="email" type="email" required autocomplete="username"></div><div class="field"><label>Password</label><input id="password" type="password" required autocomplete="current-password"></div><button class="btn primary" style="width:100%">Sign In</button></form><div id="loginMsg"></div>
+<h2>Teacher Login</h2><p class="muted">Sign in using the account you activated for yourself.</p>
+<form id="loginForm"><div class="field"><label>Email</label><input id="email" type="email" required autocomplete="username"></div><div class="field"><label>Password</label><input id="password" type="password" required autocomplete="current-password"></div><button class="btn primary" style="width:100%">Sign In</button></form><div id="loginMsg"></div>
+<hr style="border:0;border-top:1px solid #e2e8f0;margin:22px 0">
+<h3 style="margin-bottom:4px">First time here?</h3><p class="muted" style="margin-top:0">Activate your teacher account using the one-time code issued by the school administrator.</p>
+<form id="signupForm">
+<div class="field"><label>Approved Teacher Name</label><input id="signupName" type="text" required placeholder="Example: AIDA" autocomplete="name"></div>
+<div class="field"><label>Your Email Address</label><input id="signupEmail" type="email" required autocomplete="email"></div>
+<div class="field"><label>Create Password</label><input id="signupPassword" type="password" required minlength="8" autocomplete="new-password"></div>
+<div class="field"><label>One-Time Activation Code</label><input id="activationCode" type="text" required autocomplete="off" placeholder="BNHS-XXXXXXXX"></div>
+<button class="btn secondary" style="width:100%">Activate My Account</button>
+</form><div id="signupMsg"></div>
 </section>
 <section id="app" style="display:none">
 <div class="card"><div class="headrow"><div class="identity"><div class="muted">Signed in as</div><strong id="teacherName">Teacher</strong><div id="accountEmail" class="muted"></div><div class="badges"><span class="badge" id="usedBadge">0/5 days used</span><span class="badge" id="remainBadge">5 remaining</span></div></div><button class="btn secondary" id="logoutBtn">Sign Out</button></div></div>
@@ -55,6 +64,33 @@ async function start(){
  sb.auth.onAuthStateChange(async(e,s)=>{if(e==='SIGNED_OUT')location.reload();else if(s?.user&&(!user||user.id!==s.user.id))await enter(s.user)})
 }
 $('loginForm').addEventListener('submit',async e=>{e.preventDefault();$('loginMsg').innerHTML='';const {data,error}=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error)$('loginMsg').innerHTML='<div class="notice err">'+esc(error.message)+'</div>';else if(data.user)await enter(data.user)});
+$('signupForm').addEventListener('submit',async e=>{
+ e.preventDefault();
+ $('signupMsg').innerHTML='';
+ const teacherName=$('signupName').value.trim().toUpperCase();
+ const email=$('signupEmail').value.trim();
+ const password=$('signupPassword').value;
+ const activationCode=$('activationCode').value.trim();
+ if(password.length<8){$('signupMsg').innerHTML='<div class="notice err">Password must be at least 8 characters.</div>';return}
+ const {data,error}=await sb.auth.signUp({
+   email,
+   password,
+   options:{
+     data:{teacher_name:teacherName,activation_code:activationCode},
+     emailRedirectTo:window.location.href.split('#')[0]
+   }
+ });
+ if(error){
+   $('signupMsg').innerHTML='<div class="notice err">'+esc(error.message)+'</div>';
+   return;
+ }
+ if(data.session&&data.user){
+   $('signupMsg').innerHTML='<div class="notice ok">Account activated successfully. Signing you in…</div>';
+   await enter(data.user);
+ }else{
+   $('signupMsg').innerHTML='<div class="notice ok"><b>Account activated.</b> Please check your email and confirm the address if Supabase asks for confirmation, then return here and sign in.</div>';
+ }
+});
 async function enter(u){
  user=u;const {data:p,error}=await sb.from('profiles').select('user_id,teacher_name,role,active').eq('user_id',u.id).single();
  if(error||!p||!p.active){await sb.auth.signOut();$('loginCard').style.display='block';$('loginMsg').innerHTML='<div class="notice err">Your account is not linked to an active BNHS teacher profile. Please contact the administrator.</div>';return}
