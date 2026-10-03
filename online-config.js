@@ -1,7 +1,7 @@
 // BNHS Wellness Leave Online Configuration
-// Enter only the browser-safe Supabase URL and publishable key.
-// NEVER put the service-role/secret key here.
+// This file contains only the browser-safe Supabase project URL and publishable key.
+// NEVER place a Supabase service-role/secret key in this public repository.
 window.BNHS_ONLINE_CONFIG = {
-  supabaseUrl: "YOUR_SUPABASE_URL",
-  supabasePublishableKey: "YOUR_SUPABASE_PUBLISHABLE_KEY"
+  supabaseUrl: "https://ynhiqevcvehcrvsddcue.supabase.co",
+  supabasePublishableKey: "sb_publishable_PQDBnWCA_AH1qZlqAsDvvQ_21vQt_Dw"
 };
