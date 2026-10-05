@@ -48,7 +48,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 <div class="field"><label>Selected Leave Date</label><input id="leaveDate" type="date"></div>
 <button class="btn primary" id="plotBtn">Plot My Leave</button>
 </div>
-<div class="notice"><b>Wellness Leave rules:</b> maximum 5 days per teacher, maximum 3 consecutive school days, and maximum 2 Wellness Leave slots per date. <b>Sick Leave</b> is recorded separately and does not reduce the 5-day Wellness Leave quota. Saturdays and Sundays are unavailable.</div><div id="msg"></div></div>
+<div class="notice"><b>Wellness Leave rules:</b> maximum 5 days per teacher, maximum 3 consecutive school days, and maximum 2 Wellness Leave slots per date. <b>Sick Leave</b> is recorded separately and does not reduce the 5-day Wellness Leave quota. Saturdays, Sundays, Summative Test dates, Term Exam dates, and designated post-Wellness-Break dates are unavailable.</div><div id="msg"></div></div>
 <div class="card"><div class="calendarHead"><div><h2 id="monthTitle" style="margin:0">Wellness Leave Calendar</h2><div class="muted">Click an available school day to select it.</div></div><div class="nav"><button class="btn secondary" id="prevBtn">‹ Previous</button><button class="btn secondary" id="todayBtn">Today</button><button class="btn secondary" id="nextBtn">Next ›</button></div></div><div class="calendarScroll"><div id="calendar" class="grid"></div></div></div>
 <div class="card">
   <div class="calendarHead">
@@ -86,7 +86,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.95.0/dist/umd/supabase.min.js"></script>
 <script src="online-config.js"></script>
 <script>
-const cfg=window.BNHS_ONLINE_CONFIG||{};let sb=null,user=null,profile=null,profiles={},leaves=[],schedules=[],assignments=[],cursor=new Date();cursor.setDate(1);
+const cfg=window.BNHS_ONLINE_CONFIG||{};let sb=null,user=null,profile=null,profiles={},leaves=[],schedules=[],assignments=[],blockedDates={},cursor=new Date();cursor.setDate(1);
 const $=id=>document.getElementById(id),iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'),today=()=>iso(new Date());
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function configured(){return cfg.supabaseUrl&&cfg.supabasePublishableKey&&!cfg.supabaseUrl.includes('YOUR_')&&!cfg.supabasePublishableKey.includes('YOUR_')}
@@ -135,16 +135,18 @@ async function refresh(){
   {data:ps,error:pe},
   {data:ls,error:le},
   {data:ss,error:se},
-  {data:as,error:ae}
+  {data:as,error:ae},
+  {data:bd,error:be}
  ]=await Promise.all([
   sb.from('wellness_portal_profiles').select('user_id,teacher_name,role,active').eq('active',true),
   sb.from('wellness_portal_leave').select('id,user_id,leave_date,leave_type,created_at').order('leave_date'),
   sb.from('wellness_portal_schedule').select('id,teacher_name,day_of_week,period,section,subject,grade_level,active').eq('active',true),
-  sb.from('wellness_portal_reliever_assignments').select('id,leave_date,schedule_id,absent_teacher_name,reliever_teacher_name,assigned_by,created_at')
+  sb.from('wellness_portal_reliever_assignments').select('id,leave_date,schedule_id,absent_teacher_name,reliever_teacher_name,assigned_by,created_at'),
+  sb.from('wellness_portal_blocked_dates').select('blocked_date,reason')
  ]);
- const err=pe||le||se||ae;
+ const err=pe||le||se||ae||be;
  if(err){setMsg('Unable to load online Wellness Leave data. '+esc(err.message),'err');return}
- profiles=Object.fromEntries((ps||[]).map(x=>[x.user_id,x]));leaves=ls||[];schedules=ss||[];assignments=as||[];render()
+ profiles=Object.fromEntries((ps||[]).map(x=>[x.user_id,x]));leaves=ls||[];schedules=ss||[];assignments=as||[];blockedDates=Object.fromEntries((bd||[]).map(x=>[x.blocked_date,x.reason]));render()
 }
 function subscribe(){
  sb.channel('bnhs-wellness-live')
@@ -167,7 +169,7 @@ function renderCalendar(){
  $('monthTitle').textContent=first.toLocaleDateString('en-US',{month:'long',year:'numeric'})+' — Wellness Leave Slots';
  let h=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(x=>'<div class="weekday">'+x+'</div>').join('');
  for(let i=0;i<42;i++){const n=i-offset+1;if(n<1||n>days){h+='<div class="day blank"></div>';continue}
-  const d=y+'-'+String(m+1).padStart(2,'0')+'-'+String(n).padStart(2,'0'),wk=weekend(d),rows=leaves.filter(x=>x.leave_date===d),wellnessRows=rows.filter(x=>x.leave_type==='wellness'),sickRows=rows.filter(x=>x.leave_type==='sick'),left=Math.max(0,2-wellnessRows.length),status=wk?'weekend':left===2?'open':left===1?'partial':'full',label=wk?'WEEKEND — unavailable':left===0?'Wellness FULL — 0 slots':left+' Wellness slot'+(left===1?'':'s')+' available',names=rows.map(x=>'• '+esc(profiles[x.user_id]?.teacher_name||'Teacher')+' — '+(x.leave_type==='sick'?'Sick':'Wellness')).join('<br>');
+  const d=y+'-'+String(m+1).padStart(2,'0')+'-'+String(n).padStart(2,'0'),wk=weekend(d),blocked=blockedDates[d],rows=leaves.filter(x=>x.leave_date===d),wellnessRows=rows.filter(x=>x.leave_type==='wellness'),sickRows=rows.filter(x=>x.leave_type==='sick'),left=Math.max(0,2-wellnessRows.length),status=(wk||blocked)?'weekend':left===2?'open':left===1?'partial':'full',label=blocked?'BLOCKED — '+esc(blocked):(wk?'WEEKEND — unavailable':left===0?'Wellness FULL — 0 slots':left+' Wellness slot'+(left===1?'':'s')+' available'),names=rows.map(x=>'• '+esc(profiles[x.user_id]?.teacher_name||'Teacher')+' — '+(x.leave_type==='sick'?'Sick':'Wellness')).join('<br>');
   h+='<button class="day '+status+(d===selected&&!wk?' selected':'')+'" '+(wk||left===0?'disabled':'data-date="'+d+'"')+'><span class="num">'+n+'</span>'+(d===today()?'<span class="today">TODAY</span>':'')+'<br><span class="pill '+status+'">'+label+'</span>'+(names?'<div class="names">'+names+'</div>':'')+'</button>'
  }
  $('calendar').innerHTML=h;document.querySelectorAll('.day[data-date]').forEach(b=>b.addEventListener('click',()=>{$('leaveDate').value=b.dataset.date;renderCalendar();setMsg('<b>'+esc(b.dataset.date)+'</b> selected.')}))
