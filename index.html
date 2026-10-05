@@ -167,6 +167,9 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
         return {data:{session:s,user:d.user||d},error:null};
       },
       async getSession(){return {data:{session},error:null}},
+      onAuthStateChange(callback){
+        return {data:{subscription:{unsubscribe(){}}}};
+      },
       async signOut(){
         if(session?.access_token){try{await fetch(url+'/auth/v1/logout',{method:'POST',headers:{'apikey':key,'Authorization':'Bearer '+session.access_token}})}catch(e){}}
         save(null); return {error:null};
