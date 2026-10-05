@@ -105,6 +105,19 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
   <div id="staffMsg"></div>
   <div id="staffList" class="tablewrap" style="margin-top:12px"></div>
 </div>
+<div class="card" id="slotAdminCard" style="display:none">
+  <div class="calendarHead"><div>
+    <h3 style="margin:0">Admin: Wellness Leave Slot Manager</h3>
+    <div class="muted">The normal capacity is 2 Wellness Leave slots per school day. Add extra slots for a specific date when needed.</div>
+  </div></div>
+  <div class="plotbar" style="margin-top:12px">
+    <div class="field"><label>Date</label><input id="slotDate" type="date"></div>
+    <div class="field"><label>Current Capacity</label><div id="slotCurrent" class="badge" style="padding:12px">2 slots</div></div>
+    <button class="btn primary" id="addSlotBtn">+ Add 1 Slot</button>
+    <button class="btn secondary" id="resetSlotBtn">Reset to 2 Slots</button>
+  </div>
+  <div id="slotMsg"></div>
+</div>
 <div class="card" id="adminResetCard" style="display:none;border-color:#fecaca">
   <div class="calendarHead">
     <div>
@@ -220,7 +233,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 <noscript><div style="max-width:760px;margin:20px auto;padding:16px;background:#fff1f2;border:1px solid #fecdd3;border-radius:12px;color:#9f1239;font-family:Arial">JavaScript is required to open the BNHS Wellness Leave Portal.</div></noscript>
 <script src="online-config.js"></script>
 <script>
-const cfg=window.BNHS_ONLINE_CONFIG||{};let sb=null,user=null,profile=null,profiles={},leaves=[],schedules=[],assignments=[],staff=[],activationStatus={},activationCodes={},blockedDates={},pendingRelieverSelections={},cursor=new Date();cursor.setDate(1);
+const cfg=window.BNHS_ONLINE_CONFIG||{};let sb=null,user=null,profile=null,profiles={},leaves=[],schedules=[],assignments=[],staff=[],activationStatus={},activationCodes={},slotOverrides={},blockedDates={},pendingRelieverSelections={},cursor=new Date();cursor.setDate(1);
 const $=id=>document.getElementById(id),iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'),today=()=>iso(new Date());
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function configured(){return cfg.supabaseUrl&&cfg.supabasePublishableKey&&!cfg.supabaseUrl.includes('YOUR_')&&!cfg.supabasePublishableKey.includes('YOUR_')}
@@ -269,7 +282,7 @@ async function enter(u){
    $('loginMsg').innerHTML='<div class="notice err">'+(error?'Login succeeded, but the teacher profile could not be loaded. Please refresh and try again.':'Your account is not linked to an active BNHS teacher profile. Please contact the administrator.')+'</div>';
    return
  }
- profile=p;$('loginCard').style.display='none';$('app').style.display='block';$('teacherName').textContent=p.teacher_name;$('accountEmail').textContent=u.email||'';$('leaveDate').value=today();cursor=new Date();cursor.setDate(1);$('scheduleAdminCard').style.display=p.role==='admin'?'block':'none';$('staffAdminCard').style.display=p.role==='admin'?'block':'none';$('adminResetCard').style.display=p.role==='admin'?'block':'none';await refresh();subscribe()
+ profile=p;$('loginCard').style.display='none';$('app').style.display='block';$('teacherName').textContent=p.teacher_name;$('accountEmail').textContent=u.email||'';$('leaveDate').value=today();cursor=new Date();cursor.setDate(1);$('scheduleAdminCard').style.display=p.role==='admin'?'block':'none';$('staffAdminCard').style.display=p.role==='admin'?'block':'none';$('slotAdminCard').style.display=p.role==='admin'?'block':'none';$('adminResetCard').style.display=p.role==='admin'?'block':'none';await refresh();subscribe()
 }
 async function refresh(){
  const [
@@ -279,6 +292,7 @@ async function refresh(){
   {data:as,error:ae},
   {data:st,error:ste},
   {data:ast,error:aste},
+  {data:so,error:soe},
   {data:bd,error:be}
  ]=await Promise.all([
   sb.from('wellness_portal_profiles').select('user_id,teacher_name,role,active').eq('active',true),
@@ -287,11 +301,12 @@ async function refresh(){
   sb.from('wellness_portal_reliever_assignments').select('id,leave_date,schedule_id,absent_teacher_name,reliever_teacher_name,assigned_by,created_at'),
   sb.from('wellness_portal_staff').select('id,staff_name,staff_type,active,created_at').order('staff_name'),
   sb.rpc('admin_get_staff_activation_status'),
+  sb.from('wellness_portal_slot_overrides').select('slot_date,total_slots,updated_at'),
   sb.from('wellness_portal_blocked_dates').select('blocked_date,reason')
  ]);
- const err=pe||le||se||ae||ste||aste||be;
+ const err=pe||le||se||ae||ste||aste||soe||be;
  if(err){setMsg('Unable to load online Wellness Leave data. '+esc(err.message),'err');return}
- profiles=Object.fromEntries((ps||[]).map(x=>[x.user_id,x]));leaves=ls||[];schedules=ss||[];assignments=as||[];staff=st||[];activationStatus=Object.fromEntries((ast||[]).map(x=>[x.staff_name,x]));blockedDates=Object.fromEntries((bd||[]).map(x=>[x.blocked_date,x.reason]));render()
+ profiles=Object.fromEntries((ps||[]).map(x=>[x.user_id,x]));leaves=ls||[];schedules=ss||[];assignments=as||[];staff=st||[];activationStatus=Object.fromEntries((ast||[]).map(x=>[x.staff_name,x]));slotOverrides=Object.fromEntries((so||[]).map(x=>[x.slot_date,Number(x.total_slots)||2]));blockedDates=Object.fromEntries((bd||[]).map(x=>[x.blocked_date,x.reason]));render()
 }
 function subscribe(){
  sb.channel('bnhs-wellness-live')
@@ -306,7 +321,7 @@ function render(){
  $('usedBadge').textContent=wellnessMine.length+'/5 Wellness days used';
  $('remainBadge').textContent=Math.max(0,5-wellnessMine.length)+' Wellness remaining • '+sickMine.length+' Sick Leave';
  renderLeaveDateSelector(mine);
- renderCalendar();renderRelievers();renderMyDaySchedule();if(profile.role==='admin'){renderStaffAdmin();renderAdminScheduleList();}
+ renderCalendar();renderRelievers();renderMyDaySchedule();if(profile.role==='admin'){renderStaffAdmin();renderAdminScheduleList();renderSlotManager();}
  $('myLeaves').innerHTML=mine.length?'<table><tr><th>Date</th><th>Leave Type</th><th>Day</th><th>Action</th></tr>'+mine.map(x=>'<tr><td><b>'+esc(x.leave_date)+'</b></td><td><span class="badge">'+(x.leave_type==='sick'?'SICK LEAVE':'WELLNESS LEAVE')+'</span></td><td>'+new Date(x.leave_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'})+'</td><td><button class="btn danger" onclick="removeLeave('+x.id+')">Remove</button></td></tr>').join('')+'</table>':'<p class="muted">You have not plotted any leave yet.</p>'
 }
 function renderCalendar(){
@@ -314,8 +329,8 @@ function renderCalendar(){
  $('monthTitle').textContent=first.toLocaleDateString('en-US',{month:'long',year:'numeric'})+' — Wellness Leave Slots';
  let h=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(x=>'<div class="weekday">'+x+'</div>').join('');
  for(let i=0;i<42;i++){const n=i-offset+1;if(n<1||n>days){h+='<div class="day blank"></div>';continue}
-  const d=y+'-'+String(m+1).padStart(2,'0')+'-'+String(n).padStart(2,'0'),wk=weekend(d),blocked=blockedDates[d],rows=leaves.filter(x=>x.leave_date===d),wellnessRows=rows.filter(x=>x.leave_type==='wellness'),sickRows=rows.filter(x=>x.leave_type==='sick'),left=Math.max(0,2-wellnessRows.length),status=(wk||blocked)?'weekend':left===2?'open':left===1?'partial':'full',label=blocked?'BLOCKED — '+esc(blocked):(wk?'WEEKEND — unavailable':left===0?'Wellness FULL — 0 slots':left+' Wellness slot'+(left===1?'':'s')+' available'),names=rows.map(x=>'• '+esc(profiles[x.user_id]?.teacher_name||'Teacher')+' — '+(x.leave_type==='sick'?'Sick':'Wellness')).join('<br>');
-  h+='<button class="day '+status+(d===selected&&!wk?' selected':'')+'" '+(wk||left===0?'disabled':'data-date="'+d+'"')+'><span class="num">'+n+'</span>'+(d===today()?'<span class="today">TODAY</span>':'')+'<br><span class="pill '+status+'">'+label+'</span>'+(names?'<div class="names">'+names+'</div>':'')+'</button>'
+  const d=y+'-'+String(m+1).padStart(2,'0')+'-'+String(n).padStart(2,'0'),wk=weekend(d),blocked=blockedDates[d],rows=leaves.filter(x=>x.leave_date===d),wellnessRows=rows.filter(x=>x.leave_type==='wellness'),sickRows=rows.filter(x=>x.leave_type==='sick'),capacity=slotOverrides[d]||2,left=Math.max(0,capacity-wellnessRows.length),status=(wk||blocked)?'weekend':left===2?'open':left===1?'partial':'full',label=blocked?'BLOCKED — '+esc(blocked):(wk?'WEEKEND — unavailable':left===0?'Wellness FULL — 0 of '+capacity+' slots available':left+' of '+capacity+' Wellness slot'+(capacity===1?'':'s')+' available'),names=rows.map(x=>'• '+esc(profiles[x.user_id]?.teacher_name||'Teacher')+' — '+(x.leave_type==='sick'?'Sick':'Wellness')).join('<br>');
+  h+='<button class="day '+status+(d===selected&&!wk&&!blocked?' selected':'')+'" '+(wk||blocked||left===0?'disabled':'data-date="'+d+'"')+'><span class="num">'+n+'</span>'+(d===today()?'<span class="today">TODAY</span>':'')+'<br><span class="pill '+status+'">'+label+'</span>'+(names?'<div class="names">'+names+'</div>':'')+'</button>'
  }
  $('calendar').innerHTML=h;document.querySelectorAll('.day[data-date]').forEach(b=>b.addEventListener('click',()=>{$('leaveDate').value=b.dataset.date;renderCalendar();setMsg('<b>'+esc(b.dataset.date)+'</b> selected.')}))
 }
@@ -625,6 +640,41 @@ function renderStaffAdmin(){
     return '<tr><td><b>'+esc(s.staff_name)+'</b></td><td>'+(s.staff_type==='employee'?'Employee / Staff':'Teacher')+'</td><td><span class="badge">'+(s.active?'ACTIVE':'INACTIVE')+'</span></td><td>'+activationCell+'</td><td>'+codeCell+'</td><td>'+codeButtons+' <button class="btn secondary" onclick="editStaff('+s.id+')">Edit</button> <button class="btn '+(s.active?'danger':'primary')+'" onclick="toggleStaff('+s.id+','+s.active+')">'+(s.active?'Deactivate':'Activate')+'</button></td></tr>';
   }).join('')+'</table>':'<p class="muted">No staff records yet.</p>';
 }
+function renderSlotManager(){
+ if(profile?.role!=='admin')return;
+ const input=$('slotDate');
+ if(!input.value)input.value=$('leaveDate').value||today();
+ const d=input.value;
+ const total=slotOverrides[d]||2;
+ $('slotCurrent').textContent=total+' slot'+(total===1?'':'s');
+}
+async function addWellnessSlot(){
+ if(profile?.role!=='admin')return;
+ const d=$('slotDate').value;
+ if(!d){$('slotMsg').innerHTML='<div class="notice err">Choose a date first.</div>';return}
+ $('addSlotBtn').disabled=true;
+ const {data,error}=await sb.rpc('admin_add_wellness_slot',{p_date:d});
+ $('addSlotBtn').disabled=false;
+ if(error){
+   $('slotMsg').innerHTML='<div class="notice err">'+esc(error.message)+'</div>';
+   return;
+ }
+ const total=Number(data?.total_slots)||((slotOverrides[d]||2)+1);
+ $('slotMsg').innerHTML='<div class="notice ok"><b>Slot added.</b> '+esc(d)+' now has '+total+' Wellness Leave slots.</div>';
+ await refresh();
+}
+async function resetWellnessSlots(){
+ if(profile?.role!=='admin')return;
+ const d=$('slotDate').value;
+ if(!d){$('slotMsg').innerHTML='<div class="notice err">Choose a date first.</div>';return}
+ const {error}=await sb.rpc('admin_reset_wellness_slots',{p_date:d});
+ if(error){
+   $('slotMsg').innerHTML='<div class="notice err">'+esc(error.message)+'</div>';
+   return;
+ }
+ $('slotMsg').innerHTML='<div class="notice ok">'+esc(d)+' is back to the standard 2 Wellness Leave slots.</div>';
+ await refresh();
+}
 async function resetAllLeaveData(){
  if(profile?.role!=='admin')return;
  const totalLeaves=leaves.length;
@@ -684,6 +734,9 @@ $('cancelScheduleEditBtn').onclick=clearScheduleForm;
 $('scheduleFilterTeacher').onchange=renderAdminScheduleList;
 $('scheduleFilterDay').onchange=renderAdminScheduleList;
 $('addStaffBtn').onclick=addStaff;
+$('addSlotBtn').onclick=addWellnessSlot;
+$('resetSlotBtn').onclick=resetWellnessSlots;
+$('slotDate').onchange=renderSlotManager;
 $('resetAllLeavesBtn').onclick=resetAllLeaveData;
 $('useSelectedLeaveDateBtn').onclick=()=>{
  const d=$('relieverDateSelect').value;
