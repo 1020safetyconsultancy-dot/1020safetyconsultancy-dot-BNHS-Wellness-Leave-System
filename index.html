@@ -43,6 +43,14 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 </section>
 <section id="app" style="display:none">
 <div class="card"><div class="headrow"><div class="identity"><div class="muted">Signed in as</div><strong id="teacherName">Teacher</strong><div id="accountPosition" style="font-weight:700;color:#1769d2;margin-top:2px"></div><div id="accountEmail" class="muted"></div><div class="badges"><span class="badge" id="usedBadge">0/5 days used</span><span class="badge" id="remainBadge">5 remaining</span></div></div><button class="btn secondary" id="logoutBtn">Sign Out</button></div></div>
+<div class="card" id="schoolAnnouncementsCard">
+  <div class="calendarHead"><div>
+    <h3 style="margin:0">School Announcements</h3>
+    <div class="muted">Latest notices from the School Principal.</div>
+  </div></div>
+  <div id="schoolAnnouncements" style="margin-top:10px"></div>
+</div>
+
 <div class="card"><div class="plotbar">
 <div class="field"><label>Leave Type</label><select id="leaveType" style="padding:12px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px"><option value="wellness">Wellness Leave</option><option value="sick">Sick Leave</option></select></div>
 <div class="field"><label>Selected Leave Date</label><input id="leaveDate" type="date"></div>
@@ -169,13 +177,6 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
     <button class="btn danger" id="resetAllLeavesBtn">Reset All Leaves</button>
   </div>
   <div id="resetAllLeavesMsg"></div>
-</div>
-<div class="card" id="schoolAnnouncementsCard">
-  <div class="calendarHead"><div>
-    <h3 style="margin:0">School Announcements</h3>
-    <div class="muted">Latest notices from the School Principal.</div>
-  </div></div>
-  <div id="schoolAnnouncements" style="margin-top:10px"></div>
 </div>
 <div class="card"><h3>My Schedule for Selected Date</h3><div id="myDaySchedule" class="tablewrap"></div></div>
 <div class="card"><h3>My Wellness Leave</h3><div id="myLeaves" class="tablewrap"></div></div>
