@@ -170,6 +170,13 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
   </div>
   <div id="resetAllLeavesMsg"></div>
 </div>
+<div class="card" id="schoolAnnouncementsCard">
+  <div class="calendarHead"><div>
+    <h3 style="margin:0">School Announcements</h3>
+    <div class="muted">Latest notices from the School Principal.</div>
+  </div></div>
+  <div id="schoolAnnouncements" style="margin-top:10px"></div>
+</div>
 <div class="card"><h3>My Schedule for Selected Date</h3><div id="myDaySchedule" class="tablewrap"></div></div>
 <div class="card"><h3>My Wellness Leave</h3><div id="myLeaves" class="tablewrap"></div></div>
 </section>
@@ -368,7 +375,7 @@ function render(){
  $('usedBadge').textContent=wellnessMine.length+'/5 Wellness days used';
  $('remainBadge').textContent=Math.max(0,5-wellnessMine.length)+' Wellness remaining • '+sickMine.length+' Sick Leave';
  renderLeaveDateSelector(mine);
- renderCalendar();renderRelievers();renderMyDaySchedule();if(profile.role==='admin'){renderStaffAdmin();renderAdminScheduleList();renderSlotManager();}if(profile.role==='principal'||profile.role==='admin'){renderPrincipalDashboard();}
+ renderCalendar();renderRelievers();renderMyDaySchedule();renderSchoolAnnouncements();if(profile.role==='admin'){renderStaffAdmin();renderAdminScheduleList();renderSlotManager();}if(profile.role==='principal'||profile.role==='admin'){renderPrincipalDashboard();}
  $('myLeaves').innerHTML=mine.length?'<table><tr><th>Date</th><th>Leave Type</th><th>Day</th><th>Action</th></tr>'+mine.map(x=>'<tr><td><b>'+esc(x.leave_date)+'</b></td><td><span class="badge">'+(x.leave_type==='sick'?'SICK LEAVE':'WELLNESS LEAVE')+'</span></td><td>'+new Date(x.leave_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'})+'</td><td><button class="btn danger" onclick="removeLeave('+x.id+')">Remove</button></td></tr>').join('')+'</table>':'<p class="muted">You have not plotted any leave yet.</p>'
 }
 function renderCalendar(){
@@ -687,6 +694,19 @@ function renderStaffAdmin(){
     return '<tr><td><b>'+esc(s.staff_name)+'</b></td><td>'+(s.staff_type==='employee'?'Employee / Staff':'Teacher')+'</td><td><span class="badge">'+(s.active?'ACTIVE':'INACTIVE')+'</span></td><td>'+activationCell+'</td><td>'+codeCell+'</td><td>'+codeButtons+' <button class="btn secondary" onclick="editStaff('+s.id+')">Edit</button> <button class="btn '+(s.active?'danger':'primary')+'" onclick="toggleStaff('+s.id+','+s.active+')">'+(s.active?'Deactivate':'Activate')+'</button></td></tr>';
   }).join('')+'</table>':'<p class="muted">No staff records yet.</p>';
 }
+function renderSchoolAnnouncements(){
+ const box=$('schoolAnnouncements');if(!box)return;
+ const active=(announcements||[]).filter(a=>a.active!==false).slice(0,8);
+ if(!active.length){
+   box.innerHTML='<p class="muted">No current school announcements.</p>';
+   return;
+ }
+ box.innerHTML=active.map(a=>{
+   const dt=String(a.created_at||'').slice(0,10);
+   return '<div class="notice" style="margin-bottom:8px"><div><b>'+esc(a.message)+'</b></div><div class="muted" style="margin-top:4px">Posted by '+esc(a.posted_by_name||'School Principal')+(dt?' • '+esc(dt):'')+'</div></div>';
+ }).join('');
+}
+
 function renderPrincipalDashboard(){
  if(!(profile?.role==='principal'||profile?.role==='admin'))return;
 
