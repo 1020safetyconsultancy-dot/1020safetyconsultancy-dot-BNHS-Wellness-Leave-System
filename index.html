@@ -95,7 +95,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 <div class="card" id="staffAdminCard" style="display:none">
   <div class="calendarHead"><div>
     <h3 style="margin:0">Admin: Teachers & Employees</h3>
-    <div class="muted">Add teachers or other school employees. Active staff may appear as relieving options when they are available.</div>
+    <div class="muted">Add teachers or other school employees. Generate their one-time portal activation code here. Active staff may also appear as relieving options when they are available.</div>
   </div></div>
   <div class="plotbar" style="margin-top:12px">
     <div class="field"><label>Name</label><input id="staffName" type="text" placeholder="Full name"></div>
@@ -220,7 +220,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 <noscript><div style="max-width:760px;margin:20px auto;padding:16px;background:#fff1f2;border:1px solid #fecdd3;border-radius:12px;color:#9f1239;font-family:Arial">JavaScript is required to open the BNHS Wellness Leave Portal.</div></noscript>
 <script src="online-config.js"></script>
 <script>
-const cfg=window.BNHS_ONLINE_CONFIG||{};let sb=null,user=null,profile=null,profiles={},leaves=[],schedules=[],assignments=[],staff=[],blockedDates={},pendingRelieverSelections={},cursor=new Date();cursor.setDate(1);
+const cfg=window.BNHS_ONLINE_CONFIG||{};let sb=null,user=null,profile=null,profiles={},leaves=[],schedules=[],assignments=[],staff=[],activationStatus={},activationCodes={},blockedDates={},pendingRelieverSelections={},cursor=new Date();cursor.setDate(1);
 const $=id=>document.getElementById(id),iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'),today=()=>iso(new Date());
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function configured(){return cfg.supabaseUrl&&cfg.supabasePublishableKey&&!cfg.supabaseUrl.includes('YOUR_')&&!cfg.supabasePublishableKey.includes('YOUR_')}
@@ -278,6 +278,7 @@ async function refresh(){
   {data:ss,error:se},
   {data:as,error:ae},
   {data:st,error:ste},
+  {data:ast,error:aste},
   {data:bd,error:be}
  ]=await Promise.all([
   sb.from('wellness_portal_profiles').select('user_id,teacher_name,role,active').eq('active',true),
@@ -285,11 +286,12 @@ async function refresh(){
   sb.from('wellness_portal_schedule').select('id,teacher_name,day_of_week,period,section,subject,grade_level,active').eq('active',true),
   sb.from('wellness_portal_reliever_assignments').select('id,leave_date,schedule_id,absent_teacher_name,reliever_teacher_name,assigned_by,created_at'),
   sb.from('wellness_portal_staff').select('id,staff_name,staff_type,active,created_at').order('staff_name'),
+  sb.rpc('admin_get_staff_activation_status'),
   sb.from('wellness_portal_blocked_dates').select('blocked_date,reason')
  ]);
- const err=pe||le||se||ae||ste||be;
+ const err=pe||le||se||ae||ste||aste||be;
  if(err){setMsg('Unable to load online Wellness Leave data. '+esc(err.message),'err');return}
- profiles=Object.fromEntries((ps||[]).map(x=>[x.user_id,x]));leaves=ls||[];schedules=ss||[];assignments=as||[];staff=st||[];blockedDates=Object.fromEntries((bd||[]).map(x=>[x.blocked_date,x.reason]));render()
+ profiles=Object.fromEntries((ps||[]).map(x=>[x.user_id,x]));leaves=ls||[];schedules=ss||[];assignments=as||[];staff=st||[];activationStatus=Object.fromEntries((ast||[]).map(x=>[x.staff_name,x]));blockedDates=Object.fromEntries((bd||[]).map(x=>[x.blocked_date,x.reason]));render()
 }
 function subscribe(){
  sb.channel('bnhs-wellness-live')
@@ -568,11 +570,60 @@ async function editStaff(id){
  if(error)$('staffMsg').innerHTML='<div class="notice err">'+esc(error.message)+'</div>';else await refresh();
 }
 window.editStaff=editStaff;
+async function generateActivationCode(name){
+ if(profile?.role!=='admin')return;
+ $('staffMsg').innerHTML='<div class="notice">Generating one-time activation code for <b>'+esc(name)+'</b>…</div>';
+ const {data,error}=await sb.rpc('admin_generate_staff_activation_code',{p_staff_name:name});
+ if(error){
+   $('staffMsg').innerHTML='<div class="notice err">'+esc(error.message)+'</div>';
+   return;
+ }
+ const code=data?.activation_code||'';
+ if(!code){
+   $('staffMsg').innerHTML='<div class="notice err">The activation code could not be generated.</div>';
+   return;
+ }
+ activationCodes[name]=code;
+ $('staffMsg').innerHTML='<div class="notice ok"><b>One-time activation code generated for '+esc(name)+':</b> <span style="font-family:monospace;font-size:16px">'+esc(code)+'</span><br><span class="muted">Copy this code now. For security, the full code is only shown after generation/regeneration.</span></div>';
+ await refresh();
+}
+window.generateActivationCode=generateActivationCode;
+
+async function copyActivationCode(name){
+ const code=activationCodes[name];
+ if(!code){
+   $('staffMsg').innerHTML='<div class="notice">The full code is not stored in the browser. Click <b>Generate Code</b> or <b>Regenerate Code</b> first.</div>';
+   return;
+ }
+ try{
+   await navigator.clipboard.writeText(code);
+   $('staffMsg').innerHTML='<div class="notice ok">Activation code for <b>'+esc(name)+'</b> copied: <span style="font-family:monospace">'+esc(code)+'</span></div>';
+ }catch(e){
+   window.prompt('Copy this activation code:',code);
+ }
+}
+window.copyActivationCode=copyActivationCode;
+
 function renderStaffAdmin(){
  if(profile?.role!=='admin')return;
  const rows=[...staff].sort((a,b)=>Number(b.active)-Number(a.active)||a.staff_name.localeCompare(b.staff_name));
- $('staffList').innerHTML=rows.length?'<table><tr><th>Name</th><th>Type</th><th>Status</th><th>Action</th></tr>'+
-  rows.map(s=>'<tr><td><b>'+esc(s.staff_name)+'</b></td><td>'+(s.staff_type==='employee'?'Employee / Staff':'Teacher')+'</td><td><span class="badge">'+(s.active?'ACTIVE':'INACTIVE')+'</span></td><td><button class="btn secondary" onclick="editStaff('+s.id+')">Edit</button> <button class="btn '+(s.active?'danger':'primary')+'" onclick="toggleStaff('+s.id+','+s.active+')">'+(s.active?'Deactivate':'Activate')+'</button></td></tr>').join('')+'</table>':'<p class="muted">No staff records yet.</p>';
+ $('staffList').innerHTML=rows.length?'<table><tr><th>Name</th><th>Type</th><th>Staff Status</th><th>Account Activation</th><th>One-Time Code</th><th>Action</th></tr>'+
+  rows.map(s=>{
+    const a=activationStatus[s.staff_name]||{};
+    const code=activationCodes[s.staff_name]||'';
+    const activationCell=a.activated
+      ? '<span class="badge">ACTIVATED</span>'
+      : (a.has_activation_code?'<span class="badge">CODE GENERATED</span>':'<span class="muted">Not generated</span>');
+    const codeCell=a.activated
+      ? '<span class="muted">Used</span>'
+      : (code?'<b style="font-family:monospace">'+esc(code)+'</b>':'<span class="muted">Hidden until generated</span>');
+    const codeButtons=a.activated
+      ? ''
+      : (a.has_activation_code
+          ? '<button class="btn secondary" onclick="generateActivationCode(\''+esc(s.staff_name).replace(/&#39;/g,"\\'")+'\')">Regenerate Code</button> '+(code?'<button class="btn secondary" onclick="copyActivationCode(\''+esc(s.staff_name).replace(/&#39;/g,"\\'")+'\')">Copy Code</button>':'')
+          : '<button class="btn primary" onclick="generateActivationCode(\''+esc(s.staff_name).replace(/&#39;/g,"\\'")+'\')">Generate Code</button>');
+    return '<tr><td><b>'+esc(s.staff_name)+'</b></td><td>'+(s.staff_type==='employee'?'Employee / Staff':'Teacher')+'</td><td><span class="badge">'+(s.active?'ACTIVE':'INACTIVE')+'</span></td><td>'+activationCell+'</td><td>'+codeCell+'</td><td>'+codeButtons+' <button class="btn secondary" onclick="editStaff('+s.id+')">Edit</button> <button class="btn '+(s.active?'danger':'primary')+'" onclick="toggleStaff('+s.id+','+s.active+')">'+(s.active?'Deactivate':'Activate')+'</button></td></tr>';
+  }).join('')+'</table>':'<p class="muted">No staff records yet.</p>';
 }
 async function resetAllLeaveData(){
  if(profile?.role!=='admin')return;
