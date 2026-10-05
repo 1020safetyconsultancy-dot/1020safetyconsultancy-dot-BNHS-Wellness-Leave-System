@@ -451,7 +451,20 @@ async function removeLeave(id){
  const row=leaves.find(x=>x.id===id);if(!row||row.user_id!==user.id)return;
  const {error}=await sb.from('wellness_portal_leave').delete().eq('id',id);if(error)setMsg(esc(error.message),'err');else{setMsg('Wellness Leave removed.','ok');await refresh()}
 }
-window.removeLeave=removeLeave;$('plotBtn').onclick=plot;$('logoutBtn').onclick=()=>sb.auth.signOut();
+window.removeLeave=removeLeave;
+$('plotBtn').onclick=plot;
+$('logoutBtn').onclick=async()=>{
+  const btn=$('logoutBtn');
+  if(btn){btn.disabled=true;btn.textContent='Signing Out…'}
+  try{await sb.auth.signOut()}catch(e){console.error(e)}
+  try{localStorage.removeItem('bnhs_supabase_session_v1')}catch(e){}
+  user=null;profile=null;
+  $('app').style.display='none';
+  $('loginCard').style.display='block';
+  $('loginPass').value='';
+  $('loginMsg').innerHTML='<div class="notice ok">You have been signed out.</div>';
+  if(btn){btn.disabled=false;btn.textContent='Sign Out'}
+};
 $('prevBtn').onclick=()=>{cursor=new Date(cursor.getFullYear(),cursor.getMonth()-1,1);renderCalendar()};
 $('nextBtn').onclick=()=>{cursor=new Date(cursor.getFullYear(),cursor.getMonth()+1,1);renderCalendar()};
 $('todayBtn').onclick=()=>{cursor=new Date();cursor.setDate(1);$('leaveDate').value=today();renderCalendar()};
