@@ -79,6 +79,16 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
   </div>
   <div id="scheduleMsg"></div>
 </div>
+<div class="card" id="adminResetCard" style="display:none;border-color:#fecaca">
+  <div class="calendarHead">
+    <div>
+      <h3 style="margin:0;color:#991b1b">Admin: Reset All Leave Data</h3>
+      <div class="muted">Clears all plotted Wellness Leave, Sick Leave, and all saved relieving-teacher assignments. Teacher accounts, schedules, blocked dates, and activation records are not affected.</div>
+    </div>
+    <button class="btn danger" id="resetAllLeavesBtn">Reset All Leaves</button>
+  </div>
+  <div id="resetAllLeavesMsg"></div>
+</div>
 <div class="card"><h3>My Schedule for Selected Date</h3><div id="myDaySchedule" class="tablewrap"></div></div>
 <div class="card"><h3>My Wellness Leave</h3><div id="myLeaves" class="tablewrap"></div></div>
 </section>
@@ -128,7 +138,7 @@ $('signupForm').addEventListener('submit',async e=>{
 async function enter(u){
  user=u;const {data:p,error}=await sb.from('wellness_portal_profiles').select('user_id,teacher_name,role,active').eq('user_id',u.id).single();
  if(error||!p||!p.active){await sb.auth.signOut();$('loginCard').style.display='block';$('loginMsg').innerHTML='<div class="notice err">Your account is not linked to an active BNHS teacher profile. Please contact the administrator.</div>';return}
- profile=p;$('loginCard').style.display='none';$('app').style.display='block';$('teacherName').textContent=p.teacher_name;$('accountEmail').textContent=u.email||'';$('leaveDate').value=today();cursor=new Date();cursor.setDate(1);$('scheduleAdminCard').style.display=p.role==='admin'?'block':'none';await refresh();subscribe()
+ profile=p;$('loginCard').style.display='none';$('app').style.display='block';$('teacherName').textContent=p.teacher_name;$('accountEmail').textContent=u.email||'';$('leaveDate').value=today();cursor=new Date();cursor.setDate(1);$('scheduleAdminCard').style.display=p.role==='admin'?'block':'none';$('adminResetCard').style.display=p.role==='admin'?'block':'none';await refresh();subscribe()
 }
 async function refresh(){
  const [
@@ -304,6 +314,31 @@ async function addSchedule(){
  if(error)$('scheduleMsg').innerHTML='<div class="notice err">'+esc(error.message)+'</div>';
  else{$('scheduleMsg').innerHTML='<div class="notice ok">Schedule added.</div>';await refresh()}
 }
+async function resetAllLeaveData(){
+ if(profile?.role!=='admin')return;
+ const totalLeaves=leaves.length;
+ const totalAssignments=assignments.length;
+ const answer=window.prompt(
+   'WARNING: This will permanently clear ALL plotted Wellness Leave, Sick Leave, and reliever assignments for every teacher.\n\nCurrent records: '+totalLeaves+' leave(s), '+totalAssignments+' reliever assignment(s).\n\nType RESET ALL LEAVES to continue:'
+ );
+ if(answer!=='RESET ALL LEAVES'){
+   $('resetAllLeavesMsg').innerHTML='<div class="notice">Reset cancelled. No data was deleted.</div>';
+   return;
+ }
+ $('resetAllLeavesBtn').disabled=true;
+ $('resetAllLeavesMsg').innerHTML='<div class="notice">Resetting all leave data…</div>';
+ const {data,error}=await sb.rpc('admin_reset_all_leave_data');
+ $('resetAllLeavesBtn').disabled=false;
+ if(error){
+   $('resetAllLeavesMsg').innerHTML='<div class="notice err">'+esc(error.message)+'</div>';
+   return;
+ }
+ const dl=data?.deleted_leave_records??totalLeaves;
+ const da=data?.deleted_reliever_assignments??totalAssignments;
+ $('resetAllLeavesMsg').innerHTML='<div class="notice ok"><b>Reset complete.</b> '+dl+' leave record(s) and '+da+' reliever assignment(s) were cleared.</div>';
+ setMsg('All plotted leave data has been reset by the administrator.','ok');
+ await refresh();
+}
 async function plot(){
  const d=$('leaveDate').value;if(!d){setMsg('Please choose a date.','err');return}if(weekend(d)){setMsg('Saturday and Sunday are unavailable.','err');return}
  const leaveType=$('leaveType').value;
@@ -321,6 +356,7 @@ $('todayBtn').onclick=()=>{cursor=new Date();cursor.setDate(1);$('leaveDate').va
 $('leaveDate').onchange=()=>{const v=$('leaveDate').value;if(v){const d=new Date(v+'T12:00:00');cursor=new Date(d.getFullYear(),d.getMonth(),1)}renderCalendar();renderRelievers();renderMyDaySchedule()};
 $('leaveType').onchange=()=>{$('plotBtn').textContent=$('leaveType').value==='sick'?'Plot My Sick Leave':'Plot My Wellness Leave'};
 $('addScheduleBtn').onclick=addSchedule;
+$('resetAllLeavesBtn').onclick=resetAllLeaveData;
 $('useSelectedLeaveDateBtn').onclick=()=>{
  const d=$('relieverDateSelect').value;
  if(d)switchRelieverDate(d);
