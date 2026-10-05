@@ -94,28 +94,99 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 </section>
 </div>
 <script>
-async function loadSupabaseLib(){
-  if(window.supabase?.createClient) return;
-  const sources=[
-    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.95.0/dist/umd/supabase.min.js',
-    'https://unpkg.com/@supabase/supabase-js@2.95.0/dist/umd/supabase.min.js'
-  ];
-  let lastErr=null;
-  for(const src of sources){
-    try{
-      await new Promise((resolve,reject)=>{
-        const s=document.createElement('script');
-        s.src=src;
-        s.async=true;
-        s.onload=()=>window.supabase?.createClient?resolve():reject(new Error('Supabase library did not initialize'));
-        s.onerror=()=>reject(new Error('Could not load '+src));
-        document.head.appendChild(s);
-      });
-      return;
-    }catch(e){lastErr=e}
+(function(){
+  function makeClient(url,key){
+    const storeKey='bnhs_supabase_session_v1';
+    let session=null;
+    try{session=JSON.parse(localStorage.getItem(storeKey)||'null')}catch(e){}
+    const authHeaders=()=>({
+      'apikey':key,
+      'Authorization':'Bearer '+(session?.access_token||key),
+      'Content-Type':'application/json'
+    });
+    async function req(path,opt={}){
+      const r=await fetch(url+path,{...opt,headers:{...authHeaders(),...(opt.headers||{})}});
+      let data=null; const txt=await r.text();
+      try{data=txt?JSON.parse(txt):null}catch(e){data=txt}
+      if(!r.ok) return {data:null,error:{message:data?.msg||data?.message||data?.error_description||data?.error||('Request failed ('+r.status+')')}};
+      return {data,error:null};
+    }
+    function save(s){session=s||null;if(s)localStorage.setItem(storeKey,JSON.stringify(s));else localStorage.removeItem(storeKey)}
+    function table(name){
+      let method='GET', filters=[], body=null, selectCols='*', orderBy=null, singleMode=false, onConflict=null;
+      const api={
+        select(cols='*'){selectCols=cols;return api},
+        eq(col,val){filters.push(col+'=eq.'+encodeURIComponent(val));return api},
+        order(col,opt={}){orderBy=col+'.'+(opt.ascending===false?'desc':'asc');return api},
+        single(){singleMode=true;return api},
+        insert(obj){method='POST';body=obj;return api},
+        update(obj){method='PATCH';body=obj;return api},
+        delete(){method='DELETE';return api},
+        upsert(obj,opt={}){method='POST';body=obj;onConflict=opt.onConflict||null;return api},
+        async then(resolve,reject){
+          let qs=[];
+          if(method==='GET') qs.push('select='+encodeURIComponent(selectCols));
+          if(filters.length) qs.push(...filters);
+          if(orderBy) qs.push('order='+encodeURIComponent(orderBy));
+          if(onConflict) qs.push('on_conflict='+encodeURIComponent(onConflict));
+          const headers={};
+          if(method==='POST'){
+            headers['Prefer']=onConflict?'resolution=merge-duplicates,return=representation':'return=representation';
+          }else if(method==='PATCH'||method==='DELETE'){
+            headers['Prefer']='return=representation';
+          }
+          const res=await req('/rest/v1/'+name+(qs.length?'?'+qs.join('&'):''),{
+            method,headers,body:body==null?undefined:JSON.stringify(body)
+          });
+          if(!res.error&&singleMode){
+            if(Array.isArray(res.data)) res.data=res.data[0]||null;
+          }
+          resolve(res);
+        }
+      };
+      return api;
+    }
+    const auth={
+      async signInWithPassword({email,password}){
+        const r=await fetch(url+'/auth/v1/token?grant_type=password',{
+          method:'POST',headers:{'apikey':key,'Content-Type':'application/json'},
+          body:JSON.stringify({email,password})
+        });
+        const d=await r.json().catch(()=>({}));
+        if(!r.ok)return {data:{session:null,user:null},error:{message:d.msg||d.error_description||d.message||'Invalid login credentials'}};
+        save(d); return {data:{session:d,user:d.user},error:null};
+      },
+      async signUp({email,password,options={}}){
+        const r=await fetch(url+'/auth/v1/signup',{
+          method:'POST',headers:{'apikey':key,'Content-Type':'application/json'},
+          body:JSON.stringify({email,password,data:options.data||{}})
+        });
+        const d=await r.json().catch(()=>({}));
+        if(!r.ok)return {data:{session:null,user:null},error:{message:d.msg||d.error_description||d.message||d.error||'Signup failed'}};
+        const s=d.access_token?d:null;if(s)save(s);
+        return {data:{session:s,user:d.user||d},error:null};
+      },
+      async getSession(){return {data:{session},error:null}},
+      async signOut(){
+        if(session?.access_token){try{await fetch(url+'/auth/v1/logout',{method:'POST',headers:{'apikey':key,'Authorization':'Bearer '+session.access_token}})}catch(e){}}
+        save(null); return {error:null};
+      }
+    };
+    return {
+      auth,
+      from:table,
+      async rpc(fn,args={}){
+        return req('/rest/v1/rpc/'+fn,{method:'POST',body:JSON.stringify(args)});
+      },
+      channel(){
+        return {on(){return this},subscribe(){return this}};
+      },
+      removeChannel(){return Promise.resolve()}
+    };
   }
-  throw lastErr||new Error('Could not load the online service library.');
-}
+  window.supabase={createClient:makeClient};
+  window.loadSupabaseLib=async()=>true;
+})();
 </script>
 <noscript><div style="max-width:760px;margin:20px auto;padding:16px;background:#fff1f2;border:1px solid #fecdd3;border-radius:12px;color:#9f1239;font-family:Arial">JavaScript is required to open the BNHS Wellness Leave Portal.</div></noscript>
 <script src="online-config.js"></script>
@@ -401,7 +472,7 @@ start().catch(err=>{
  const card=document.getElementById('loginCard');
  if(card) card.style.display='block';
  const msg=document.getElementById('loginMsg');
- if(msg) msg.innerHTML='<div class="notice err">The portal loaded, but the online connection library could not start. Please press Ctrl + F5 and try again. If this message remains, try another browser or network.</div>';
+ if(msg) msg.innerHTML='<div class="notice err">The portal loaded but could not connect to the online database. Please refresh the page and try again.</div>';
 });
 </script>
 <!-- deployment refresh 2026-10-05 -->
