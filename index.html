@@ -42,7 +42,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 </form><div id="signupMsg"></div>
 </section>
 <section id="app" style="display:none">
-<div class="card"><div class="headrow"><div class="identity"><div class="muted">Signed in as</div><strong id="teacherName">Teacher</strong><div id="accountEmail" class="muted"></div><div class="badges"><span class="badge" id="usedBadge">0/5 days used</span><span class="badge" id="remainBadge">5 remaining</span></div></div><button class="btn secondary" id="logoutBtn">Sign Out</button></div></div>
+<div class="card"><div class="headrow"><div class="identity"><div class="muted">Signed in as</div><strong id="teacherName">Teacher</strong><div id="accountPosition" style="font-weight:700;color:#1769d2;margin-top:2px"></div><div id="accountEmail" class="muted"></div><div class="badges"><span class="badge" id="usedBadge">0/5 days used</span><span class="badge" id="remainBadge">5 remaining</span></div></div><button class="btn secondary" id="logoutBtn">Sign Out</button></div></div>
 <div class="card"><div class="plotbar">
 <div class="field"><label>Leave Type</label><select id="leaveType" style="padding:12px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px"><option value="wellness">Wellness Leave</option><option value="sick">Sick Leave</option></select></div>
 <div class="field"><label>Selected Leave Date</label><input id="leaveDate" type="date"></div>
@@ -69,7 +69,8 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 <div class="card" id="principalDashboardCard" style="display:none">
   <div class="calendarHead"><div>
     <h3 style="margin:0">Principal / School Head Dashboard</h3>
-    <div class="muted">School-wide leave monitoring, staffing coverage, reports, alerts, and announcements.</div>
+    <div style="margin-top:6px"><b>MARILOU PAGDILAO PASALO</b><br><span style="font-weight:700;color:#1769d2">SCHOOL PRINCIPAL</span></div>
+    <div class="muted" style="margin-top:4px">School-wide leave monitoring, staffing coverage, reports, alerts, and announcements.</div>
   </div></div>
 
   <div class="plotbar" style="margin-top:12px">
@@ -323,7 +324,7 @@ async function enter(u){
    $('loginMsg').innerHTML='<div class="notice err">'+(error?'Login succeeded, but the teacher profile could not be loaded. Please refresh and try again.':'Your account is not linked to an active BNHS teacher profile. Please contact the administrator.')+'</div>';
    return
  }
- profile=p;$('loginCard').style.display='none';$('app').style.display='block';$('teacherName').textContent=p.teacher_name;$('accountEmail').textContent=u.email||'';$('leaveDate').value=today();cursor=new Date();cursor.setDate(1);$('principalDashboardCard').style.display=(p.role==='principal'||p.role==='admin')?'block':'none';$('scheduleAdminCard').style.display=p.role==='admin'?'block':'none';$('staffAdminCard').style.display=p.role==='admin'?'block':'none';$('slotAdminCard').style.display=p.role==='admin'?'block':'none';$('adminResetCard').style.display=p.role==='admin'?'block':'none';await refresh();subscribe()
+ profile=p;$('loginCard').style.display='none';$('app').style.display='block';$('teacherName').textContent=p.teacher_name;$('accountPosition').textContent=p.role==='principal'?'SCHOOL PRINCIPAL':p.role==='admin'?'SYSTEM ADMINISTRATOR':'';$('accountEmail').textContent=u.email||'';$('leaveDate').value=today();cursor=new Date();cursor.setDate(1);$('principalDashboardCard').style.display=(p.role==='principal'||p.role==='admin')?'block':'none';$('scheduleAdminCard').style.display=p.role==='admin'?'block':'none';$('staffAdminCard').style.display=p.role==='admin'?'block':'none';$('slotAdminCard').style.display=p.role==='admin'?'block':'none';$('adminResetCard').style.display=p.role==='admin'?'block':'none';await refresh();subscribe()
 }
 async function refresh(){
  const [
