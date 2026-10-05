@@ -74,6 +74,40 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
   <div class="notice"><b>How it works:</b> Select one of your plotted Wellness Leave dates below. The system will show only the classes affected on that date and you can choose a different relieving teacher for each period. Repeat this for every leave date.</div>
   <div id="relieverPanel" style="margin-top:12px"></div>
 </div>
+<div class="card" id="adminOfficerDashboardCard" style="display:none">
+  <div class="calendarHead"><div>
+    <h3 style="margin:0">Administrative Officer Dashboard</h3>
+    <div class="muted">Staff records, schedules, leave monitoring, reliever coverage, reports, and cumulative relieving hours.</div>
+  </div></div>
+
+  <div class="plotbar" style="margin-top:12px">
+    <div class="field"><label>Active Staff</label><div id="aoActiveStaff" class="badge" style="padding:12px">0</div></div>
+    <div class="field"><label>On Leave Today</label><div id="aoOnLeaveToday" class="badge" style="padding:12px">0</div></div>
+    <div class="field"><label>Relief Assignments</label><div id="aoReliefAssignments" class="badge" style="padding:12px">0</div></div>
+    <div class="field"><label>Uncovered Today</label><div id="aoUncoveredToday" class="badge" style="padding:12px">0</div></div>
+  </div>
+
+  <div id="aoAlerts" style="margin-top:12px"></div>
+
+  <h4>Leave Records Monitoring</h4>
+  <div id="aoLeaveRecords" class="tablewrap"></div>
+
+  <h4>Reliever Coverage Monitoring</h4>
+  <div id="aoCoverage" class="tablewrap"></div>
+
+  <h4>Cumulative Relieving Hours — From Start of Records</h4>
+  <div class="notice">Hours are computed from each assigned class period. The report covers all saved relieving assignments from the beginning of the portal records up to the present.</div>
+  <div id="aoRelievingHours" class="tablewrap" style="margin-top:10px"></div>
+
+  <h4>Administrative Reports</h4>
+  <div class="plotbar">
+    <div class="field"><label>From</label><input id="aoReportFrom" type="date"></div>
+    <div class="field"><label>To</label><input id="aoReportTo" type="date"></div>
+    <button class="btn secondary" id="aoRunReportBtn">Generate Report</button>
+    <button class="btn secondary" id="aoPrintReportBtn">Print</button>
+  </div>
+  <div id="aoReport" class="tablewrap" style="margin-top:10px"></div>
+</div>
 <div class="card" id="principalDashboardCard" style="display:none">
   <div class="calendarHead"><div>
     <h3 style="margin:0">Principal / School Head Dashboard</h3>
@@ -332,7 +366,7 @@ async function enter(u){
    $('loginMsg').innerHTML='<div class="notice err">'+(error?'Login succeeded, but the teacher profile could not be loaded. Please refresh and try again.':'Your account is not linked to an active BNHS teacher profile. Please contact the administrator.')+'</div>';
    return
  }
- profile=p;$('loginCard').style.display='none';$('app').style.display='block';$('teacherName').textContent=p.teacher_name;$('accountPosition').textContent=p.role==='principal'?'SCHOOL PRINCIPAL':p.role==='admin'?'SYSTEM ADMINISTRATOR':'';$('accountEmail').textContent=u.email||'';$('leaveDate').value=today();cursor=new Date();cursor.setDate(1);$('principalDashboardCard').style.display=(p.role==='principal'||p.role==='admin')?'block':'none';$('scheduleAdminCard').style.display=p.role==='admin'?'block':'none';$('staffAdminCard').style.display=p.role==='admin'?'block':'none';$('slotAdminCard').style.display=p.role==='admin'?'block':'none';$('adminResetCard').style.display=p.role==='admin'?'block':'none';await refresh();subscribe()
+ profile=p;$('loginCard').style.display='none';$('app').style.display='block';$('teacherName').textContent=p.teacher_name;$('accountPosition').textContent=p.role==='principal'?'SCHOOL PRINCIPAL':p.role==='administrative_officer'?'ADMINISTRATIVE OFFICER':p.role==='admin'?'SYSTEM ADMINISTRATOR':'';$('accountEmail').textContent=u.email||'';$('leaveDate').value=today();cursor=new Date();cursor.setDate(1);$('principalDashboardCard').style.display=(p.role==='principal'||p.role==='admin')?'block':'none';$('adminOfficerDashboardCard').style.display=(p.role==='administrative_officer'||p.role==='admin')?'block':'none';$('scheduleAdminCard').style.display=(p.role==='admin'||p.role==='administrative_officer')?'block':'none';$('staffAdminCard').style.display=(p.role==='admin'||p.role==='administrative_officer')?'block':'none';$('slotAdminCard').style.display=p.role==='admin'?'block':'none';$('adminResetCard').style.display=p.role==='admin'?'block':'none';await refresh();subscribe()
 }
 async function refresh(){
  const [
@@ -376,7 +410,7 @@ function render(){
  $('usedBadge').textContent=wellnessMine.length+'/5 Wellness days used';
  $('remainBadge').textContent=Math.max(0,5-wellnessMine.length)+' Wellness remaining • '+sickMine.length+' Sick Leave';
  renderLeaveDateSelector(mine);
- renderCalendar();renderRelievers();renderMyDaySchedule();renderSchoolAnnouncements();if(profile.role==='admin'){renderStaffAdmin();renderAdminScheduleList();renderSlotManager();}if(profile.role==='principal'||profile.role==='admin'){renderPrincipalDashboard();}
+ renderCalendar();renderRelievers();renderMyDaySchedule();renderSchoolAnnouncements();if(profile.role==='admin'){renderStaffAdmin();renderAdminScheduleList();renderSlotManager();}if(profile.role==='principal'||profile.role==='admin'){renderPrincipalDashboard();}if(profile.role==='administrative_officer'||profile.role==='admin'){renderAdminOfficerDashboard();}
  $('myLeaves').innerHTML=mine.length?'<table><tr><th>Date</th><th>Leave Type</th><th>Day</th><th>Action</th></tr>'+mine.map(x=>'<tr><td><b>'+esc(x.leave_date)+'</b></td><td><span class="badge">'+(x.leave_type==='sick'?'SICK LEAVE':'WELLNESS LEAVE')+'</span></td><td>'+new Date(x.leave_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'})+'</td><td><button class="btn danger" onclick="removeLeave('+x.id+')">Remove</button></td></tr>').join('')+'</table>':'<p class="muted">You have not plotted any leave yet.</p>'
 }
 function renderCalendar(){
@@ -542,7 +576,7 @@ async function assignReliever(scheduleId){
 }
 window.assignReliever=assignReliever;
 function populateAdminPersonSelects(){
- if(profile?.role!=='admin')return;
+ if(!(profile?.role==='admin'||profile?.role==='administrative_officer'))return;
  const active=staff.filter(x=>x.active).sort((a,b)=>a.staff_name.localeCompare(b.staff_name));
  const options=active.map(x=>'<option value="'+esc(x.staff_name)+'">'+esc(x.staff_name)+' — '+(x.staff_type==='employee'?'Employee':'Teacher')+'</option>').join('');
  const current=$('schedTeacher').value;
@@ -559,7 +593,7 @@ function clearScheduleForm(){
  $('cancelScheduleEditBtn').style.display='none';
 }
 async function addSchedule(){
- if(profile.role!=='admin')return;
+ if(!(profile.role==='admin'||profile.role==='administrative_officer'))return;
  const row={
   teacher_name:$('schedTeacher').value.trim().toUpperCase(),
   day_of_week:$('schedDay').value,
@@ -595,7 +629,7 @@ function editSchedule(id){
 }
 window.editSchedule=editSchedule;
 async function deleteSchedule(id){
- if(profile?.role!=='admin')return;
+ if(!(profile?.role==='admin'||profile?.role==='administrative_officer'))return;
  const s=schedules.find(x=>x.id===id);if(!s)return;
  if(!confirm('Delete '+s.teacher_name+' — '+s.day_of_week+' '+s.period+' — '+s.section+'?'))return;
  const {error}=await sb.from('wellness_portal_schedule').delete().eq('id',id);
@@ -604,7 +638,7 @@ async function deleteSchedule(id){
 }
 window.deleteSchedule=deleteSchedule;
 function renderAdminScheduleList(){
- if(profile?.role!=='admin')return;
+ if(!(profile?.role==='admin'||profile?.role==='administrative_officer'))return;
  populateAdminPersonSelects();
  const who=$('scheduleFilterTeacher').value, day=$('scheduleFilterDay').value;
  let rows=schedules.filter(x=>(!who||x.teacher_name===who)&&(!day||x.day_of_week===day));
@@ -616,7 +650,7 @@ function renderAdminScheduleList(){
    :'<p class="muted">No schedules match the selected filters.</p>';
 }
 async function addStaff(){
- if(profile?.role!=='admin')return;
+ if(!(profile?.role==='admin'||profile?.role==='administrative_officer'))return;
  const name=$('staffName').value.trim().toUpperCase(), type=$('staffType').value;
  if(!name){$('staffMsg').innerHTML='<div class="notice err">Enter the teacher or employee name.</div>';return}
  const {error}=await sb.from('wellness_portal_staff').insert({staff_name:name,staff_type:type,active:true});
@@ -624,13 +658,13 @@ async function addStaff(){
  else{$('staffName').value='';$('staffMsg').innerHTML='<div class="notice ok">'+esc(name)+' added.</div>';await refresh()}
 }
 async function toggleStaff(id,active){
- if(profile?.role!=='admin')return;
+ if(!(profile?.role==='admin'||profile?.role==='administrative_officer'))return;
  const {error}=await sb.from('wellness_portal_staff').update({active:!active}).eq('id',id);
  if(error)$('staffMsg').innerHTML='<div class="notice err">'+esc(error.message)+'</div>';else await refresh();
 }
 window.toggleStaff=toggleStaff;
 async function editStaff(id){
- if(profile?.role!=='admin')return;
+ if(!(profile?.role==='admin'||profile?.role==='administrative_officer'))return;
  const s=staff.find(x=>x.id===id);if(!s)return;
  const newName=(prompt('Edit name:',s.staff_name)||'').trim().toUpperCase();
  if(!newName)return;
@@ -641,7 +675,7 @@ async function editStaff(id){
 }
 window.editStaff=editStaff;
 async function generateActivationCode(name){
- if(profile?.role!=='admin')return;
+ if(!(profile?.role==='admin'||profile?.role==='administrative_officer'))return;
  $('staffMsg').innerHTML='<div class="notice">Generating one-time activation code for <b>'+esc(name)+'</b>…</div>';
  const {data,error}=await sb.rpc('admin_generate_staff_activation_code',{p_staff_name:name});
  if(error){
@@ -675,7 +709,7 @@ async function copyActivationCode(name){
 window.copyActivationCode=copyActivationCode;
 
 function renderStaffAdmin(){
- if(profile?.role!=='admin')return;
+ if(!(profile?.role==='admin'||profile?.role==='administrative_officer'))return;
  const rows=[...staff].sort((a,b)=>Number(b.active)-Number(a.active)||a.staff_name.localeCompare(b.staff_name));
  $('staffList').innerHTML=rows.length?'<table><tr><th>Name</th><th>Type</th><th>Staff Status</th><th>Account Activation</th><th>One-Time Code</th><th>Action</th></tr>'+
   rows.map(s=>{
@@ -831,6 +865,90 @@ function renderPrincipalAnnouncements(){
     active.map(a=>'<tr><td>'+esc(String(a.created_at||'').slice(0,10))+'</td><td><b>'+esc(a.message)+'</b></td><td>'+esc(a.posted_by_name||'Principal')+'</td><td><button class="btn danger" onclick="removePrincipalAnnouncement('+a.id+')">Remove</button></td></tr>').join('')+'</table>'
   : '<p class="muted">No active Principal announcements.</p>';
 }
+function periodHours(period){
+ const times=String(period||'').match(/\d{1,2}:\d{2}/g);
+ if(!times||times.length<2)return 0;
+ const toMin=t=>{const p=t.split(':').map(Number);return p[0]*60+p[1]};
+ let a=toMin(times[0]),b=toMin(times[times.length-1]);
+ if(b<=a)b+=12*60;
+ const mins=b-a;
+ return mins>0&&mins<=6*60?mins/60:0;
+}
+function renderAdminOfficerDashboard(){
+ if(!(profile?.role==='administrative_officer'||profile?.role==='admin'))return;
+ const t=today(), activeStaff=staff.filter(s=>s.active);
+ const todayLeaves=leaves.filter(l=>l.leave_date===t);
+ const todayNames=new Set(todayLeaves.map(l=>profiles[l.user_id]?.teacher_name).filter(Boolean));
+ let uncovered=0;
+ todayLeaves.forEach(l=>{
+   const name=profiles[l.user_id]?.teacher_name||'';
+   const day=dayName(l.leave_date);
+   schedules.filter(s=>s.teacher_name===name&&s.day_of_week===day&&s.active!==false).forEach(s=>{
+     if(!assignments.some(a=>a.leave_date===t&&a.schedule_id===s.id))uncovered++;
+   });
+ });
+ $('aoActiveStaff').textContent=activeStaff.length;
+ $('aoOnLeaveToday').textContent=todayLeaves.length;
+ $('aoReliefAssignments').textContent=assignments.length;
+ $('aoUncoveredToday').textContent=uncovered;
+
+ $('aoAlerts').innerHTML=uncovered
+   ? '<div class="notice err"><b>Coverage alert:</b> '+uncovered+' class(es) today still have no reliever assigned.</div>'
+   : '<div class="notice ok"><b>No uncovered classes detected for today.</b></div>';
+
+ const lr=[...leaves].sort((a,b)=>b.leave_date.localeCompare(a.leave_date)).slice(0,150);
+ $('aoLeaveRecords').innerHTML=lr.length
+   ? '<table><tr><th>Date</th><th>Teacher</th><th>Leave Type</th><th>Day</th></tr>'+
+     lr.map(l=>'<tr><td><b>'+esc(l.leave_date)+'</b></td><td>'+esc(profiles[l.user_id]?.teacher_name||'Teacher')+'</td><td>'+(l.leave_type==='sick'?'Sick Leave':'Wellness Leave')+'</td><td>'+esc(dayName(l.leave_date))+'</td></tr>').join('')+'</table>'
+   : '<p class="muted">No leave records.</p>';
+
+ const cov=[...assignments].sort((a,b)=>b.leave_date.localeCompare(a.leave_date)).slice(0,200);
+ $('aoCoverage').innerHTML=cov.length
+   ? '<table><tr><th>Date</th><th>Absent Teacher</th><th>Class / Period</th><th>Reliever</th></tr>'+
+     cov.map(a=>{
+       const s=schedules.find(x=>x.id===a.schedule_id);
+       return '<tr><td>'+esc(a.leave_date)+'</td><td><b>'+esc(a.absent_teacher_name)+'</b></td><td>'+esc(s?.section||'—')+' / '+esc(s?.period||'—')+'</td><td><b>'+esc(a.reliever_teacher_name)+'</b></td></tr>';
+     }).join('')+'</table>'
+   : '<p class="muted">No relieving assignments yet.</p>';
+
+ const totals={};
+ assignments.forEach(a=>{
+   const s=schedules.find(x=>x.id===a.schedule_id);
+   const hrs=periodHours(s?.period);
+   const n=a.reliever_teacher_name||'Unknown';
+   if(!totals[n])totals[n]={assignments:0,hours:0};
+   totals[n].assignments++;
+   totals[n].hours+=hrs;
+ });
+ const relRows=Object.entries(totals).sort((a,b)=>b[1].hours-a[1].hours||a[0].localeCompare(b[0]));
+ $('aoRelievingHours').innerHTML=relRows.length
+   ? '<table><tr><th>Relieving Teacher / Employee</th><th>Total Relief Assignments</th><th>Total Relieving Hours</th></tr>'+
+     relRows.map(([n,v])=>'<tr><td><b>'+esc(n)+'</b></td><td>'+v.assignments+'</td><td><b>'+v.hours.toFixed(2)+' hours</b></td></tr>').join('')+'</table>'
+   : '<p class="muted">No relieving hours recorded yet.</p>';
+
+ if(!$('aoReportFrom').value){
+   const now=new Date(), first=new Date(now.getFullYear(),now.getMonth(),1);
+   $('aoReportFrom').value=iso(first);$('aoReportTo').value=t;
+ }
+ renderAdminOfficerReport();
+}
+function renderAdminOfficerReport(){
+ if(!(profile?.role==='administrative_officer'||profile?.role==='admin'))return;
+ const from=$('aoReportFrom').value||'0000-01-01',to=$('aoReportTo').value||'9999-12-31';
+ const totals={};
+ assignments.filter(a=>a.leave_date>=from&&a.leave_date<=to).forEach(a=>{
+   const s=schedules.find(x=>x.id===a.schedule_id),n=a.reliever_teacher_name||'Unknown';
+   if(!totals[n])totals[n]={assignments:0,hours:0};
+   totals[n].assignments++;totals[n].hours+=periodHours(s?.period);
+ });
+ const rows=Object.entries(totals).sort((a,b)=>b[1].hours-a[1].hours||a[0].localeCompare(b[0]));
+ $('aoReport').innerHTML=rows.length
+   ? '<table><tr><th>Reliever</th><th>Assignments</th><th>Hours</th></tr>'+
+     rows.map(([n,v])=>'<tr><td><b>'+esc(n)+'</b></td><td>'+v.assignments+'</td><td>'+v.hours.toFixed(2)+'</td></tr>').join('')+'</table>'
+   : '<p class="muted">No relieving assignments in this period.</p>';
+}
+window.renderAdminOfficerReport=renderAdminOfficerReport;
+
 function renderSlotManager(){
  if(profile?.role!=='admin')return;
  const input=$('slotDate');
@@ -929,6 +1047,8 @@ $('addSlotBtn').onclick=addWellnessSlot;
 $('resetSlotBtn').onclick=resetWellnessSlots;
 $('slotDate').onchange=renderSlotManager;
 $('resetAllLeavesBtn').onclick=resetAllLeaveData;
+$('aoRunReportBtn').onclick=renderAdminOfficerReport;
+$('aoPrintReportBtn').onclick=()=>window.print();
 $('principalRunReportBtn').onclick=renderPrincipalReport;
 $('principalPostAnnouncementBtn').onclick=postPrincipalAnnouncement;
 $('useSelectedLeaveDateBtn').onclick=()=>{
