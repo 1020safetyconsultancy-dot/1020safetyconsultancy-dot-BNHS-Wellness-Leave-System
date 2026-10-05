@@ -93,7 +93,30 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 <div class="card"><h3>My Wellness Leave</h3><div id="myLeaves" class="tablewrap"></div></div>
 </section>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.95.0/dist/umd/supabase.min.js"></script>
+<script>
+async function loadSupabaseLib(){
+  if(window.supabase?.createClient) return;
+  const sources=[
+    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.95.0/dist/umd/supabase.min.js',
+    'https://unpkg.com/@supabase/supabase-js@2.95.0/dist/umd/supabase.min.js'
+  ];
+  let lastErr=null;
+  for(const src of sources){
+    try{
+      await new Promise((resolve,reject)=>{
+        const s=document.createElement('script');
+        s.src=src;
+        s.async=true;
+        s.onload=()=>window.supabase?.createClient?resolve():reject(new Error('Supabase library did not initialize'));
+        s.onerror=()=>reject(new Error('Could not load '+src));
+        document.head.appendChild(s);
+      });
+      return;
+    }catch(e){lastErr=e}
+  }
+  throw lastErr||new Error('Could not load the online service library.');
+}
+</script>
 <noscript><div style="max-width:760px;margin:20px auto;padding:16px;background:#fff1f2;border:1px solid #fecdd3;border-radius:12px;color:#9f1239;font-family:Arial">JavaScript is required to open the BNHS Wellness Leave Portal.</div></noscript>
 <script src="online-config.js"></script>
 <script>
@@ -105,6 +128,7 @@ function weekend(date){const d=new Date(date+'T12:00:00').getDay();return d===0|
 function setMsg(t,kind=''){ $('msg').innerHTML=t?'<div class="notice '+kind+'">'+t+'</div>':'' }
 async function start(){
  if(!configured()){$('loginCard').style.display='none';$('setupCard').style.display='block';return}
+ await loadSupabaseLib();
  sb=window.supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
  const {data:{session}}=await sb.auth.getSession();if(session)await enter(session.user);else $('loginCard').style.display='block';
  sb.auth.onAuthStateChange(async(e,s)=>{if(e==='SIGNED_OUT')location.reload();else if(s?.user&&(!user||user.id!==s.user.id))await enter(s.user)})
@@ -377,7 +401,7 @@ start().catch(err=>{
  const card=document.getElementById('loginCard');
  if(card) card.style.display='block';
  const msg=document.getElementById('loginMsg');
- if(msg) msg.innerHTML='<div class="notice err">The portal loaded but could not connect to the online service. Please refresh the page.</div>';
+ if(msg) msg.innerHTML='<div class="notice err">The portal loaded, but the online connection library could not start. Please press Ctrl + F5 and try again. If this message remains, try another browser or network.</div>';
 });
 </script>
 <!-- deployment refresh 2026-10-05 -->
