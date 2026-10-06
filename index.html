@@ -22,6 +22,13 @@
 .names{margin-top:7px;font-size:10.5px;color:#475569;line-height:1.35}.today{position:absolute;right:7px;top:7px;font-size:9px;font-weight:800;color:#1769d2}.tablewrap{overflow:auto}
 table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px solid #e2e8f0;text-align:left;font-size:13px}th{background:#f8fafc;color:#334155}
 @media(max-width:600px){.top h1{font-size:18px}.wrap{padding:0 10px}.card{padding:13px}.plotbar .field{width:100%}}
+
+.admin-collapsible{position:relative}
+.admin-collapse-toggle{float:right;margin-left:10px;padding:7px 12px;border:1px solid #cbd5e1;border-radius:9px;background:white;cursor:pointer;font-weight:700}
+.admin-collapse-toggle:hover{background:#f8fafc}
+.admin-collapsible.collapsed .collapsible-body{display:none}
+.admin-collapsible.collapsed{padding-bottom:14px}
+.admin-collapsible.collapsed .admin-collapse-toggle::after{content:""}
 </style>
 </head>
 <body>
@@ -43,6 +50,12 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 </section>
 <section id="app" style="display:none">
 <div class="card"><div class="headrow"><div class="identity"><div class="muted">Signed in as</div><strong id="teacherName">Teacher</strong><div id="accountPosition" style="font-weight:700;color:#1769d2;margin-top:2px"></div><div id="accountEmail" class="muted"></div><div class="badges"><span class="badge" id="usedBadge">0/5 days used</span><span class="badge" id="remainBadge">5 remaining</span></div></div><button class="btn secondary" id="logoutBtn">Sign Out</button></div></div>
+<div id="adminCollapseControls" class="card" style="display:none;padding:10px 14px">
+  <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+    <button class="btn secondary" id="collapseAllAdminBtn">Hide All Sections</button>
+    <button class="btn secondary" id="expandAllAdminBtn">Show All Sections</button>
+  </div>
+</div>
 <div class="card" id="schoolAnnouncementsCard">
   <div class="calendarHead"><div>
     <h3 style="margin:0">School Announcements</h3>
@@ -74,7 +87,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
   <div class="notice"><b>How it works:</b> Select one of your plotted Wellness Leave dates below. The system will show only the classes affected on that date and you can choose a different relieving teacher for each period. Repeat this for every leave date.</div>
   <div id="relieverPanel" style="margin-top:12px"></div>
 </div>
-<div class="card" id="adminOfficerDashboardCard" style="display:none">
+<div class="card admin-collapsible" id="adminOfficerDashboardCard" data-collapsible="true" style="display:none">
   <div class="calendarHead"><div>
     <h3 style="margin:0">Administrative Officer Dashboard</h3>
     <div style="margin-top:6px"><b>CARLO JESTONI GAGARIN</b><br><span style="font-weight:700;color:#1769d2">ADMINISTRATIVE OFFICER</span></div>
@@ -112,7 +125,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
   </div>
   <div id="aoReport" class="tablewrap" style="margin-top:10px"></div>
 </div>
-<div class="card" id="principalDashboardCard" style="display:none">
+<div class="card admin-collapsible" id="principalDashboardCard" data-collapsible="true" style="display:none">
   <div class="calendarHead"><div>
     <h3 style="margin:0">Principal / School Head Dashboard</h3>
     <div style="margin-top:6px"><b>MARILOU PAGDILAO PASALO</b><br><span style="font-weight:700;color:#1769d2">SCHOOL PRINCIPAL</span></div>
@@ -157,7 +170,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
   <div id="principalAnnouncementMsg"></div>
   <div id="principalAnnouncements" class="tablewrap" style="margin-top:10px"></div>
 </div>
-<div class="card" id="scheduleAdminCard" style="display:none">
+<div class="card admin-collapsible" id="scheduleAdminCard" data-collapsible="true" style="display:none">
   <div class="calendarHead"><div>
     <h3 style="margin:0">Admin: Teacher Schedule Manager</h3>
     <div class="muted">Add, edit, or delete teaching schedules. Use the filters below to quickly find a teacher's classes.</div>
@@ -183,7 +196,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
   <div id="adminScheduleList" class="tablewrap" style="margin-top:10px"></div>
 </div>
 
-<div class="card" id="staffAdminCard" style="display:none">
+<div class="card admin-collapsible" id="staffAdminCard" data-collapsible="true" style="display:none">
   <div class="calendarHead"><div>
     <h3 style="margin:0">Admin: Teachers & Employees</h3>
     <div class="muted">Add teachers or other school employees. Generate one-time activation codes here. For activated accounts, the System Administrator can also set a temporary password if the user forgets it. Active staff may also appear as relieving options when they are available.</div>
@@ -196,7 +209,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
   <div id="staffMsg"></div>
   <div id="staffList" class="tablewrap" style="margin-top:12px"></div>
 </div>
-<div class="card" id="slotAdminCard" style="display:none">
+<div class="card admin-collapsible" id="slotAdminCard" data-collapsible="true" style="display:none">
   <div class="calendarHead"><div>
     <h3 style="margin:0">Admin: Wellness Leave Slot Manager</h3>
     <div class="muted">The normal capacity is 2 Wellness Leave slots per school day. Add extra slots for a specific date when needed.</div>
@@ -209,7 +222,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
   </div>
   <div id="slotMsg"></div>
 </div>
-<div class="card" id="adminResetCard" style="display:none;border-color:#fecaca">
+<div class="card admin-collapsible" id="adminResetCard" data-collapsible="true" style="display:none;border-color:#fecaca">
   <div class="calendarHead">
     <div>
       <h3 style="margin:0;color:#991b1b">Admin: Reset All Leave Data</h3>
@@ -327,6 +340,48 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 const cfg=window.BNHS_ONLINE_CONFIG||{};let sb=null,user=null,profile=null,profiles={},leaves=[],schedules=[],assignments=[],staff=[],activationStatus={},activationCodes={},slotOverrides={},announcements=[],principalSummary={},blockedDates={},pendingRelieverSelections={},cursor=new Date();cursor.setDate(1);
 const $=id=>document.getElementById(id),iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'),today=()=>iso(new Date());
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function setupCollapsibleAdminSections(){
+ const cards=[...document.querySelectorAll('.admin-collapsible[data-collapsible="true"]')];
+ const saved={};
+ try{Object.assign(saved,JSON.parse(localStorage.getItem('bnhs_collapsed_sections')||'{}'))}catch(e){}
+ cards.forEach(card=>{
+   if(card.dataset.collapseReady==='1')return;
+   card.dataset.collapseReady='1';
+
+   const body=document.createElement('div');
+   body.className='collapsible-body';
+
+   while(card.firstChild)body.appendChild(card.firstChild);
+
+   const btn=document.createElement('button');
+   btn.type='button';
+   btn.className='admin-collapse-toggle';
+
+   const titleWrap=document.createElement('div');
+   titleWrap.style.display='flex';
+   titleWrap.style.justifyContent='flex-end';
+   titleWrap.style.marginBottom='8px';
+   titleWrap.appendChild(btn);
+
+   card.appendChild(titleWrap);
+   card.appendChild(body);
+
+   const apply=()=>{
+     const collapsed=!!saved[card.id];
+     card.classList.toggle('collapsed',collapsed);
+     btn.textContent=collapsed?'Show':'Hide';
+     btn.setAttribute('aria-expanded',collapsed?'false':'true');
+   };
+
+   btn.onclick=()=>{
+     saved[card.id]=!saved[card.id];
+     try{localStorage.setItem('bnhs_collapsed_sections',JSON.stringify(saved))}catch(e){}
+     apply();
+   };
+   apply();
+ });
+}
+
 function configured(){return cfg.supabaseUrl&&cfg.supabasePublishableKey&&!cfg.supabaseUrl.includes('YOUR_')&&!cfg.supabasePublishableKey.includes('YOUR_')}
 function weekend(date){const d=new Date(date+'T12:00:00').getDay();return d===0||d===6}
 function setMsg(t,kind=''){ $('msg').innerHTML=t?'<div class="notice '+kind+'">'+t+'</div>':'' }
@@ -373,7 +428,7 @@ async function enter(u){
    $('loginMsg').innerHTML='<div class="notice err">'+(error?'Login succeeded, but the teacher profile could not be loaded. Please refresh and try again.':'Your account is not linked to an active BNHS teacher profile. Please contact the administrator.')+'</div>';
    return
  }
- profile=p;$('loginCard').style.display='none';$('app').style.display='block';$('teacherName').textContent=p.teacher_name;$('accountPosition').textContent=p.role==='principal'?'SCHOOL PRINCIPAL':p.role==='administrative_officer'?'ADMINISTRATIVE OFFICER':p.role==='admin'?'SYSTEM ADMINISTRATOR':'';$('accountEmail').textContent=u.email||'';$('leaveDate').value=today();cursor=new Date();cursor.setDate(1);$('principalDashboardCard').style.display=(p.role==='principal'||p.role==='admin')?'block':'none';$('adminOfficerDashboardCard').style.display=(p.role==='administrative_officer'||p.role==='admin')?'block':'none';$('scheduleAdminCard').style.display=(p.role==='admin'||p.role==='administrative_officer')?'block':'none';$('staffAdminCard').style.display=(p.role==='admin'||p.role==='administrative_officer')?'block':'none';$('slotAdminCard').style.display=p.role==='admin'?'block':'none';$('adminResetCard').style.display=p.role==='admin'?'block':'none';await refresh();subscribe()
+ profile=p;$('loginCard').style.display='none';$('app').style.display='block';setupCollapsibleAdminSections();$('teacherName').textContent=p.teacher_name;$('accountPosition').textContent=p.role==='principal'?'SCHOOL PRINCIPAL':p.role==='administrative_officer'?'ADMINISTRATIVE OFFICER':p.role==='admin'?'SYSTEM ADMINISTRATOR':'';$('accountEmail').textContent=u.email||'';$('leaveDate').value=today();cursor=new Date();cursor.setDate(1);$('adminCollapseControls').style.display=['admin','principal','administrative_officer'].includes(p.role)?'block':'none';$('principalDashboardCard').style.display=(p.role==='principal'||p.role==='admin')?'block':'none';$('adminOfficerDashboardCard').style.display=(p.role==='administrative_officer'||p.role==='admin')?'block':'none';$('scheduleAdminCard').style.display=(p.role==='admin'||p.role==='administrative_officer')?'block':'none';$('staffAdminCard').style.display=(p.role==='admin'||p.role==='administrative_officer')?'block':'none';$('slotAdminCard').style.display=p.role==='admin'?'block':'none';$('adminResetCard').style.display=p.role==='admin'?'block':'none';await refresh();subscribe()
 }
 async function refresh(){
  const [
@@ -1120,6 +1175,20 @@ $('slotDate').onchange=renderSlotManager;
 $('resetAllLeavesBtn').onclick=resetAllLeaveData;
 $('aoRunReportBtn').onclick=renderAdminOfficerReport;
 $('aoPrintReportBtn').onclick=()=>window.print();
+$('collapseAllAdminBtn').onclick=()=>{
+ const state={};
+ document.querySelectorAll('.admin-collapsible[data-collapsible="true"]').forEach(card=>{
+   if(card.style.display!=='none'){state[card.id]=true;card.classList.add('collapsed');const b=card.querySelector('.admin-collapse-toggle');if(b){b.textContent='Show';b.setAttribute('aria-expanded','false')}}
+ });
+ try{localStorage.setItem('bnhs_collapsed_sections',JSON.stringify(state))}catch(e){}
+};
+$('expandAllAdminBtn').onclick=()=>{
+ const state={};
+ document.querySelectorAll('.admin-collapsible[data-collapsible="true"]').forEach(card=>{
+   if(card.style.display!=='none'){state[card.id]=false;card.classList.remove('collapsed');const b=card.querySelector('.admin-collapse-toggle');if(b){b.textContent='Hide';b.setAttribute('aria-expanded','true')}}
+ });
+ try{localStorage.setItem('bnhs_collapsed_sections',JSON.stringify(state))}catch(e){}
+};
 $('principalRunReportBtn').onclick=renderPrincipalReport;
 $('principalPostAnnouncementBtn').onclick=postPrincipalAnnouncement;
 $('useSelectedLeaveDateBtn').onclick=()=>{
