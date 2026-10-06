@@ -186,7 +186,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 <div class="card" id="staffAdminCard" style="display:none">
   <div class="calendarHead"><div>
     <h3 style="margin:0">Admin: Teachers & Employees</h3>
-    <div class="muted">Add teachers or other school employees. Generate their one-time portal activation code here. Active staff may also appear as relieving options when they are available.</div>
+    <div class="muted">Add teachers or other school employees. Generate one-time activation codes here. For activated accounts, the System Administrator can also set a temporary password if the user forgets it. Active staff may also appear as relieving options when they are available.</div>
   </div></div>
   <div class="plotbar" style="margin-top:12px">
     <div class="field"><label>Name</label><input id="staffName" type="text" placeholder="Full name"></div>
@@ -715,6 +715,49 @@ async function copyActivationCode(name){
 }
 window.copyActivationCode=copyActivationCode;
 
+async function resetStaffPassword(name){
+ if(profile?.role!=='admin')return;
+ const temp=window.prompt('Enter a temporary password for '+name+' (minimum 8 characters):');
+ if(temp===null)return;
+ if(temp.length<8){
+   $('staffMsg').innerHTML='<div class="notice err">Temporary password must be at least 8 characters.</div>';
+   return;
+ }
+ const confirmTemp=window.prompt('Re-enter the temporary password to confirm:');
+ if(confirmTemp!==temp){
+   $('staffMsg').innerHTML='<div class="notice err">Passwords did not match. No change was made.</div>';
+   return;
+ }
+ if(!window.confirm('Reset the password for '+name+' now? The old password will stop working immediately.'))return;
+
+ $('staffMsg').innerHTML='<div class="notice">Resetting password for <b>'+esc(name)+'</b>…</div>';
+ const {data:{session}}=await sb.auth.getSession();
+ if(!session?.access_token){
+   $('staffMsg').innerHTML='<div class="notice err">Your admin session expired. Please sign in again.</div>';
+   return;
+ }
+ try{
+   const resp=await fetch(cfg.supabaseUrl+'/functions/v1/admin-reset-password',{
+     method:'POST',
+     headers:{
+       'Authorization':'Bearer '+session.access_token,
+       'apikey':cfg.supabasePublishableKey,
+       'Content-Type':'application/json'
+     },
+     body:JSON.stringify({teacher_name:name,temporary_password:temp})
+   });
+   const data=await resp.json().catch(()=>({}));
+   if(!resp.ok){
+     $('staffMsg').innerHTML='<div class="notice err">'+esc(data.error||'Password reset failed.')+'</div>';
+     return;
+   }
+   $('staffMsg').innerHTML='<div class="notice ok"><b>Password reset successful for '+esc(name)+'.</b><br>Give the temporary password to the user securely. Their previous password will no longer work.</div>';
+ }catch(e){
+   $('staffMsg').innerHTML='<div class="notice err">Password reset could not be completed. Please try again.</div>';
+ }
+}
+window.resetStaffPassword=resetStaffPassword;
+
 function renderStaffAdmin(){
  if(!(profile?.role==='admin'||profile?.role==='administrative_officer'))return;
  const rows=[...staff].sort((a,b)=>Number(b.active)-Number(a.active)||a.staff_name.localeCompare(b.staff_name));
@@ -733,7 +776,10 @@ function renderStaffAdmin(){
       : (a.has_activation_code
           ? '<button class="btn secondary" onclick="generateActivationCode(\''+esc(s.staff_name).replace(/&#39;/g,"\\'")+'\')">Regenerate Code</button> '+(code?'<button class="btn secondary" onclick="copyActivationCode(\''+esc(s.staff_name).replace(/&#39;/g,"\\'")+'\')">Copy Code</button>':'')
           : '<button class="btn primary" onclick="generateActivationCode(\''+esc(s.staff_name).replace(/&#39;/g,"\\'")+'\')">Generate Code</button>');
-    return '<tr><td><b>'+esc(s.staff_name)+'</b></td><td>'+(s.staff_type==='employee'?'Employee / Staff':'Teacher')+'</td><td><span class="badge">'+(s.active?'ACTIVE':'INACTIVE')+'</span></td><td>'+activationCell+'</td><td>'+codeCell+'</td><td>'+codeButtons+' <button class="btn secondary" onclick="editStaff('+s.id+')">Edit</button> <button class="btn '+(s.active?'danger':'primary')+'" onclick="toggleStaff('+s.id+','+s.active+')">'+(s.active?'Deactivate':'Activate')+'</button></td></tr>';
+    const resetButton=(a.activated&&profile.role==='admin')
+      ? ' <button class="btn secondary" onclick="resetStaffPassword(\''+esc(s.staff_name).replace(/&#39;/g,"\\'")+'\')">Reset Password</button>'
+      : '';
+    return '<tr><td><b>'+esc(s.staff_name)+'</b></td><td>'+(s.staff_type==='employee'?'Employee / Staff':'Teacher')+'</td><td><span class="badge">'+(s.active?'ACTIVE':'INACTIVE')+'</span></td><td>'+activationCell+'</td><td>'+codeCell+'</td><td>'+codeButtons+resetButton+' <button class="btn secondary" onclick="editStaff('+s.id+')">Edit</button> <button class="btn '+(s.active?'danger':'primary')+'" onclick="toggleStaff('+s.id+','+s.active+')">'+(s.active?'Deactivate':'Activate')+'</button></td></tr>';
   }).join('')+'</table>':'<p class="muted">No staff records yet.</p>';
 }
 function renderSchoolAnnouncements(){
