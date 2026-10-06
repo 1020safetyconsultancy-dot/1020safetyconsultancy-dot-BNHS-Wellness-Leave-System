@@ -65,7 +65,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 </div>
 
 <div class="card"><div class="plotbar">
-<div class="field"><label>Leave Type</label><select id="leaveType" style="padding:12px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px"><option value="wellness">Wellness Leave</option><option value="sick">Sick Leave</option><option value="vacation">Vacation Leave</option></select></div>
+<div class="field"><label>Leave Type</label><select id="leaveType" style="padding:12px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px"><option value="wellness">Wellness Leave</option><option value="vacation">Vacation Leave</option></select></div>
 <div class="field"><label>Selected Leave Date</label><input id="leaveDate" type="date"></div>
 <button class="btn primary" id="plotBtn">Plot My Leave</button>
 </div>
@@ -853,15 +853,14 @@ function renderSchoolAnnouncements(){
 function buildTeacherLeaveBalanceTable(){
  const teachers=staff.filter(s=>s.active&&s.staff_type==='teacher').sort((a,b)=>a.staff_name.localeCompare(b.staff_name));
  if(!teachers.length)return '<p class="muted">No active teacher records.</p>';
- return '<table><tr><th>Teacher</th><th>Wellness Used</th><th>Wellness Remaining</th><th>Sick Leave</th><th>Vacation Leave</th><th>Total Leave Records</th></tr>'+
+ return '<table><tr><th>Teacher</th><th>Wellness Used</th><th>Wellness Remaining</th><th>Vacation Leave</th><th>Total Leave Records</th></tr>'+
    teachers.map(t=>{
      const p=Object.values(profiles).find(x=>x.teacher_name===t.staff_name);
      const rows=p?leaves.filter(l=>l.user_id===p.user_id):[];
      const wellness=rows.filter(l=>l.leave_type==='wellness').length;
-     const sick=rows.filter(l=>l.leave_type==='sick').length;
      const vacation=rows.filter(l=>l.leave_type==='vacation').length;
      const remaining=Math.max(0,5-wellness);
-     return '<tr><td><b>'+esc(t.staff_name)+'</b></td><td>'+wellness+' / 5</td><td><b>'+remaining+'</b></td><td>'+sick+'</td><td>'+vacation+'</td><td>'+rows.length+'</td></tr>';
+     return '<tr><td><b>'+esc(t.staff_name)+'</b></td><td>'+wellness+' / 5</td><td><b>'+remaining+'</b></td><td>'+vacation+'</td><td>'+rows.length+'</td></tr>';
    }).join('')+'</table>';
 }
 
@@ -871,7 +870,7 @@ function renderPrincipalDashboard(){
  $('principalTotalStaff').textContent=principalSummary.total_staff??staff.filter(x=>x.active).length;
  $('principalOnLeave').textContent=principalSummary.on_leave_today??0;
  $('principalWellnessToday').textContent=principalSummary.wellness_today??0;
- $('principalSickToday').textContent=principalSummary.sick_today??0;$('principalVacationToday').textContent=todayLeaves.filter(l=>l.leave_type==='vacation').length;
+ $('principalVacationToday').textContent=todayLeaves.filter(l=>l.leave_type==='vacation').length;
  $('principalUncovered').textContent=principalSummary.uncovered_classes??0;
 
  const todayStr=today();
@@ -886,7 +885,7 @@ function renderPrincipalDashboard(){
       const day=dayName(l.leave_date);
       const classes=schedules.filter(s=>s.teacher_name===name&&s.day_of_week===day&&s.active!==false);
       const covered=assignments.filter(a=>a.leave_date===l.leave_date&&a.absent_teacher_name===name).length;
-      return '<tr><td><b>'+esc(l.leave_date)+'</b></td><td>'+esc(name)+'</td><td>'+(l.leave_type==='sick'?'Sick Leave':l.leave_type==='vacation'?'Vacation Leave':'Wellness Leave')+'</td><td>'+covered+'/'+classes.length+' class(es) covered</td></tr>';
+      return '<tr><td><b>'+esc(l.leave_date)+'</b></td><td>'+esc(name)+'</td><td>'+(l.leave_type==='vacation'?'Vacation Leave':'Wellness Leave')+'</td><td>'+covered+'/'+classes.length+' class(es) covered</td></tr>';
     }).join('')+'</table>'
   : '<p class="muted">No upcoming leave records.</p>';
 
@@ -1026,7 +1025,7 @@ function renderAdminOfficerDashboard(){
 
  $('aoLeaveRecords').innerHTML=lr.length
    ? '<table><tr><th>Date</th><th>Teacher</th><th>Leave Type</th><th>Day</th></tr>'+
-     lr.map(l=>'<tr><td><b>'+esc(l.leave_date)+'</b></td><td>'+esc(profiles[l.user_id]?.teacher_name||'Teacher')+'</td><td>'+(l.leave_type==='sick'?'Sick Leave':l.leave_type==='vacation'?'Vacation Leave':'Wellness Leave')+'</td><td>'+esc(dayName(l.leave_date))+'</td></tr>').join('')+'</table>'
+     lr.map(l=>'<tr><td><b>'+esc(l.leave_date)+'</b></td><td>'+esc(profiles[l.user_id]?.teacher_name||'Teacher')+'</td><td>'+(l.leave_type==='vacation'?'Vacation Leave':'Wellness Leave')+'</td><td>'+esc(dayName(l.leave_date))+'</td></tr>').join('')+'</table>'
    : '<p class="muted">No leave records.</p>';
 
  const cov=[...assignments].sort((a,b)=>b.leave_date.localeCompare(a.leave_date)).slice(0,200);
