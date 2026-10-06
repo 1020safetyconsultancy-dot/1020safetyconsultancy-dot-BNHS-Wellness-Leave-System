@@ -93,6 +93,9 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
   <h4>Leave Records Monitoring</h4>
   <div id="aoLeaveRecords" class="tablewrap"></div>
 
+  <h4>Teacher Leave Balance</h4>
+  <div id="aoLeaveBalance" class="tablewrap"></div>
+
   <h4>Reliever Coverage Monitoring</h4>
   <div id="aoCoverage" class="tablewrap"></div>
 
@@ -128,6 +131,9 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 
   <h4>Leave Monitoring Calendar / Upcoming Absences</h4>
   <div id="principalLeaveMonitor" class="tablewrap"></div>
+
+  <h4>Teacher Leave Balance</h4>
+  <div id="principalLeaveBalance" class="tablewrap"></div>
 
   <h4>Reliever Coverage Monitoring</h4>
   <div id="principalCoverage" class="tablewrap"></div>
@@ -743,6 +749,20 @@ function renderSchoolAnnouncements(){
  }).join('');
 }
 
+function buildTeacherLeaveBalanceTable(){
+ const teachers=staff.filter(s=>s.active&&s.staff_type==='teacher').sort((a,b)=>a.staff_name.localeCompare(b.staff_name));
+ if(!teachers.length)return '<p class="muted">No active teacher records.</p>';
+ return '<table><tr><th>Teacher</th><th>Wellness Used</th><th>Wellness Remaining</th><th>Sick Leave</th><th>Total Leave Records</th></tr>'+
+   teachers.map(t=>{
+     const p=Object.values(profiles).find(x=>x.teacher_name===t.staff_name);
+     const rows=p?leaves.filter(l=>l.user_id===p.user_id):[];
+     const wellness=rows.filter(l=>l.leave_type==='wellness').length;
+     const sick=rows.filter(l=>l.leave_type==='sick').length;
+     const remaining=Math.max(0,5-wellness);
+     return '<tr><td><b>'+esc(t.staff_name)+'</b></td><td>'+wellness+' / 5</td><td><b>'+remaining+'</b></td><td>'+sick+'</td><td>'+rows.length+'</td></tr>';
+   }).join('')+'</table>';
+}
+
 function renderPrincipalDashboard(){
  if(!(profile?.role==='principal'||profile?.role==='admin'))return;
 
@@ -754,6 +774,8 @@ function renderPrincipalDashboard(){
 
  const todayStr=today();
  const upcoming=leaves.filter(l=>l.leave_date>=todayStr).sort((a,b)=>a.leave_date.localeCompare(b.leave_date));
+
+ $('principalLeaveBalance').innerHTML=buildTeacherLeaveBalanceTable();
 
  $('principalLeaveMonitor').innerHTML=upcoming.length
   ? '<table><tr><th>Date</th><th>Teacher</th><th>Leave Type</th><th>Coverage</th></tr>'+
@@ -898,6 +920,8 @@ function renderAdminOfficerDashboard(){
    : '<div class="notice ok"><b>No uncovered classes detected for today.</b></div>';
 
  const lr=[...leaves].sort((a,b)=>b.leave_date.localeCompare(a.leave_date)).slice(0,150);
+ $('aoLeaveBalance').innerHTML=buildTeacherLeaveBalanceTable();
+
  $('aoLeaveRecords').innerHTML=lr.length
    ? '<table><tr><th>Date</th><th>Teacher</th><th>Leave Type</th><th>Day</th></tr>'+
      lr.map(l=>'<tr><td><b>'+esc(l.leave_date)+'</b></td><td>'+esc(profiles[l.user_id]?.teacher_name||'Teacher')+'</td><td>'+(l.leave_type==='sick'?'Sick Leave':'Wellness Leave')+'</td><td>'+esc(dayName(l.leave_date))+'</td></tr>').join('')+'</table>'
