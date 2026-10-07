@@ -212,12 +212,13 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 <div class="card admin-collapsible" id="slotAdminCard" data-collapsible="true" style="display:none">
   <div class="calendarHead"><div>
     <h3 style="margin:0">Admin: Wellness Leave Slot Manager</h3>
-    <div class="muted">The normal capacity is 2 Wellness Leave slots per school day. Add extra slots for a specific date when needed.</div>
+    <div class="muted">The normal capacity is 2 Wellness Leave slots per school day. Add or subtract slots for a specific date when needed. Capacity cannot be reduced below existing Wellness Leave bookings.</div>
   </div></div>
   <div class="plotbar" style="margin-top:12px">
     <div class="field"><label>Date</label><input id="slotDate" type="date"></div>
     <div class="field"><label>Current Capacity</label><div id="slotCurrent" class="badge" style="padding:12px">2 slots</div></div>
     <button class="btn primary" id="addSlotBtn">+ Add 1 Slot</button>
+    <button class="btn danger" id="subtractSlotBtn">− Subtract 1 Slot</button>
     <button class="btn secondary" id="resetSlotBtn">Reset to 2 Slots</button>
   </div>
   <div id="slotMsg"></div>
@@ -1098,6 +1099,23 @@ async function addWellnessSlot(){
  $('slotMsg').innerHTML='<div class="notice ok"><b>Slot added.</b> '+esc(d)+' now has '+total+' Wellness Leave slots.</div>';
  await refresh();
 }
+async function subtractWellnessSlot(){
+ if(profile?.role!=='admin')return;
+ const d=$('slotDate').value;
+ if(!d){$('slotMsg').innerHTML='<div class="notice err">Choose a date first.</div>';return}
+ $('subtractSlotBtn').disabled=true;
+ const {data,error}=await sb.rpc('admin_subtract_wellness_slot',{p_date:d});
+ $('subtractSlotBtn').disabled=false;
+ if(error){
+   $('slotMsg').innerHTML='<div class="notice err">'+esc(error.message)+'</div>';
+   return;
+ }
+ const total=Number(data?.total_slots);
+ slotOverrides[d]=total;
+ $('slotMsg').innerHTML='<div class="notice ok">Capacity for <b>'+esc(d)+'</b> reduced to <b>'+total+' slot'+(total===1?'':'s')+'</b>. Existing bookings were preserved.</div>';
+ renderSlotManager();
+ renderCalendar();
+}
 async function resetWellnessSlots(){
  if(profile?.role!=='admin')return;
  const d=$('slotDate').value;
@@ -1170,6 +1188,7 @@ $('scheduleFilterTeacher').onchange=renderAdminScheduleList;
 $('scheduleFilterDay').onchange=renderAdminScheduleList;
 $('addStaffBtn').onclick=addStaff;
 $('addSlotBtn').onclick=addWellnessSlot;
+$('subtractSlotBtn').onclick=subtractWellnessSlot;
 $('resetSlotBtn').onclick=resetWellnessSlots;
 $('slotDate').onchange=renderSlotManager;
 $('resetAllLeavesBtn').onclick=resetAllLeaveData;
