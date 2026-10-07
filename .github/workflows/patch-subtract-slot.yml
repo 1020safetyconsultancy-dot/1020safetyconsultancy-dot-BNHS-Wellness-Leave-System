@@ -1,0 +1,57 @@
+name: Patch subtract Wellness slot control
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/patch-subtract-slot.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch portal
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          c=p.read_text()
+
+          old='''<div class="muted">The normal capacity is 2 Wellness Leave slots per school day. Add extra slots for a specific date when needed.</div>'''
+          new='''<div class="muted">The normal capacity is 2 Wellness Leave slots per school day. Add or subtract slots for a specific date when needed. Capacity cannot be reduced below existing Wellness Leave bookings.</div>'''
+          if old in c:
+              c=c.replace(old,new,1)
+
+          old='''<button class="btn primary" id="addSlotBtn">+ Add 1 Slot</button>\n    <button class="btn secondary" id="resetSlotBtn">Reset to 2 Slots</button>'''
+          new='''<button class="btn primary" id="addSlotBtn">+ Add 1 Slot</button>\n    <button class="btn danger" id="subtractSlotBtn">− Subtract 1 Slot</button>\n    <button class="btn secondary" id="resetSlotBtn">Reset to 2 Slots</button>'''
+          if old not in c:
+              raise SystemExit('Slot button anchor not found')
+          c=c.replace(old,new,1)
+
+          marker='''async function resetWellnessSlots(){'''
+          fn='''async function subtractWellnessSlot(){\n if(profile?.role!==\'admin\')return;\n const d=$(\'slotDate\').value;\n if(!d){$(\'slotMsg\').innerHTML=\'<div class="notice err">Choose a date first.</div>\';return}\n $(\'subtractSlotBtn\').disabled=true;\n const {data,error}=await sb.rpc(\'admin_subtract_wellness_slot\',{p_date:d});\n $(\'subtractSlotBtn\').disabled=false;\n if(error){\n   $(\'slotMsg\').innerHTML=\'<div class="notice err">\'+esc(error.message)+\'</div>\';\n   return;\n }\n const total=Number(data?.total_slots);\n slotOverrides[d]=total;\n $(\'slotMsg\').innerHTML=\'<div class="notice ok">Capacity for <b>\'+esc(d)+\'</b> reduced to <b>\'+total+\' slot\'+(total===1?\'\':\'s\')+\'</b>. Existing bookings were preserved.</div>\';\n renderSlotManager();\n renderCalendar();\n}\n'''
+          if 'async function subtractWellnessSlot(){' not in c:
+              if marker not in c:
+                  raise SystemExit('Reset function anchor not found')
+              c=c.replace(marker,fn+marker,1)
+
+          old="$('addSlotBtn').onclick=addWellnessSlot;\n$('resetSlotBtn').onclick=resetWellnessSlots;"
+          new="$('addSlotBtn').onclick=addWellnessSlot;\n$('subtractSlotBtn').onclick=subtractWellnessSlot;\n$('resetSlotBtn').onclick=resetWellnessSlots;"
+          if old not in c:
+              raise SystemExit('Slot event anchor not found')
+          c=c.replace(old,new,1)
+
+          p.write_text(c)
+          PY
+      - name: Commit patched portal
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet && exit 0
+          git commit -m "Add subtract Wellness slot control"
+          git push
