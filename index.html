@@ -474,7 +474,7 @@ function render(){
  $('remainBadge').textContent=Math.max(0,5-wellnessMine.length)+' Wellness remaining • '+sickMine.length+' Sick Leave';
  renderLeaveDateSelector(mine);
  renderCalendar();renderRelievers();renderMyDaySchedule();renderSchoolAnnouncements();if(profile.role==='admin'){renderStaffAdmin();renderAdminScheduleList();renderSlotManager();}if(profile.role==='principal'||profile.role==='admin'){renderPrincipalDashboard();}if(profile.role==='administrative_officer'||profile.role==='admin'){renderAdminOfficerDashboard();}
- $('myLeaves').innerHTML=mine.length?'<table><tr><th>Date</th><th>Leave Type</th><th>Day</th><th>Action</th></tr>'+mine.map(x=>'<tr><td><b>'+esc(x.leave_date)+'</b></td><td><span class="badge">'+(x.leave_type==='vacation'?'VACATION LEAVE':'WELLNESS LEAVE')+'</span></td><td>'+new Date(x.leave_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'})+'</td><td>'+(x.leave_type==='wellness'?'<button class="btn primary" onclick="downloadRelievingDocument(\''+x.leave_date+'\')">Download Relieving Document</button> ':'')+'<button class="btn danger" onclick="removeLeave('+x.id+')">Remove</button></td></tr>').join('')+'</table>':'<p class="muted">You have not plotted any leave yet.</p>'
+ $('myLeaves').innerHTML=mine.length?'<table><tr><th>Date</th><th>Leave Type</th><th>Day</th><th>Action</th></tr>'+mine.map(x=>'<tr><td><b>'+esc(x.leave_date)+'</b></td><td><span class="badge">'+(x.leave_type==='vacation'?'VACATION LEAVE':'WELLNESS LEAVE')+'</span></td><td>'+new Date(x.leave_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'})+'</td><td>'+(x.leave_type==='wellness'?'<button class="btn primary" data-download-relieving="'+x.leave_date+'" type="button">Download Relieving Document</button> ':'')+'<button class="btn danger" onclick="removeLeave('+x.id+')">Remove</button></td></tr>').join('')+'</table>':'<p class="muted">You have not plotted any leave yet.</p>'
 }
 function renderCalendar(){
  const y=cursor.getFullYear(),m=cursor.getMonth(),first=new Date(y,m,1),offset=first.getDay(),days=new Date(y,m+1,0).getDate(),selected=$('leaveDate').value;
@@ -598,13 +598,14 @@ function renderRelievers(){
  const assignedCount=affected.filter(e=>assignments.some(a=>a.leave_date===date&&a.schedule_id===e.id)).length;
  const ready=assignedCount===affected.length&&leaveRow?.leave_type==='wellness';
  const downloadBox=leaveRow?.leave_type==='wellness'
-   ? '<div class="notice '+(ready?'ok':'')+'" style="margin-top:12px"><b>Relieving Document:</b> '+assignedCount+' of '+affected.length+' affected class(es) have assigned relievers.<br><button class="btn primary" style="margin-top:8px" onclick="downloadRelievingDocument(\''+date+'\')">Download Relieving Document (.docx)</button>'+(ready?'':' <span class="muted">If any reliever is still missing, the system will tell you what to complete.</span>')+'</div>'
+   ? '<div class="notice '+(ready?'ok':'')+'" style="margin-top:12px"><b>Relieving Document:</b> '+assignedCount+' of '+affected.length+' affected class(es) have assigned relievers.<br><button class="btn primary" style="margin-top:8px" data-download-relieving="'+date+'" type="button">Download Relieving Document (.docx)</button>'+(ready?'':' <span class="muted">If any reliever is still missing, the system will tell you what to complete.</span>')+'</div>'
    : '';
  box.innerHTML=html+'</table></div>'+downloadBox;
 }
-async function downloadRelievingDocument(date){
+async function downloadRelievingDocument(date,button){
+ if(button){button.disabled=true;button.dataset.oldText=button.textContent;button.textContent='Preparing document…';}
  const {data:{session}}=await sb.auth.getSession();
- if(!session?.access_token){setMsg('Your session expired. Please sign in again.','err');return}
+ if(!session?.access_token){setMsg('Your session expired. Please sign in again.','err');if(button){button.disabled=false;button.textContent=button.dataset.oldText||'Download Relieving Document';}return}
  setMsg('Preparing your relieving document…');
  try{
    const resp=await fetch(cfg.supabaseUrl+'/functions/v1/download-relieving-document',{
@@ -627,14 +628,33 @@ async function downloadRelievingDocument(date){
    const filename=match?.[1]||('Relieving_Document_'+date+'.docx');
    const url=URL.createObjectURL(blob);
    const a=document.createElement('a');
-   a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
-   setTimeout(()=>URL.revokeObjectURL(url),1000);
-   setMsg('<b>Relieving document ready.</b> The Word file has been downloaded.','ok');
+   a.href=url;
+   a.download=filename;
+   a.target='_blank';
+   a.rel='noopener';
+   document.body.appendChild(a);
+   a.click();
+   a.remove();
+   // iPhone/iPad may open the Word file in a new tab instead of showing a download prompt.
+   setTimeout(()=>URL.revokeObjectURL(url),60000);
+   setMsg('<b>Relieving document ready.</b> If you are using an iPhone/iPad, the Word file may open in a new tab—use the Share button and choose Save to Files.','ok');
  }catch(e){
    setMsg('The relieving document could not be downloaded. Please try again.','err');
+ }finally{
+   if(button){button.disabled=false;button.textContent=button.dataset.oldText||'Download Relieving Document';}
  }
 }
 window.downloadRelievingDocument=downloadRelievingDocument;
+
+// Mobile-safe delegated click handler for dynamically rendered download buttons.
+document.addEventListener('click',function(e){
+ const btn=e.target.closest('[data-download-relieving]');
+ if(!btn)return;
+ e.preventDefault();
+ e.stopPropagation();
+ const date=btn.getAttribute('data-download-relieving');
+ if(date)downloadRelievingDocument(date,btn);
+});
 
 function rememberRelieverChoice(scheduleId,value){
  const date=$('leaveDate').value;
