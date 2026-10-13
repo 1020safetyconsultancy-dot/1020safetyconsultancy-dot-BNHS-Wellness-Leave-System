@@ -598,7 +598,7 @@ function renderRelievers(){
  const assignedCount=affected.filter(e=>assignments.some(a=>a.leave_date===date&&a.schedule_id===e.id)).length;
  const ready=assignedCount===affected.length&&leaveRow?.leave_type==='wellness';
  const downloadBox=leaveRow?.leave_type==='wellness'
-   ? '<div class="notice '+(ready?'ok':'')+'" style="margin-top:12px"><b>Relieving Document:</b> '+assignedCount+' of '+affected.length+' affected class(es) have assigned relievers.<br><button class="btn primary" style="margin-top:8px" '+(ready?'':'disabled')+' onclick="downloadRelievingDocument(\''+date+'\')">Download Relieving Document (.docx)</button>'+(ready?'':' <span class="muted">Complete all reliever assignments first.</span>')+'</div>'
+   ? '<div class="notice '+(ready?'ok':'')+'" style="margin-top:12px"><b>Relieving Document:</b> '+assignedCount+' of '+affected.length+' affected class(es) have assigned relievers.<br><button class="btn primary" style="margin-top:8px" onclick="downloadRelievingDocument(\''+date+'\')">Download Relieving Document (.docx)</button>'+(ready?'':' <span class="muted">If any reliever is still missing, the system will tell you what to complete.</span>')+'</div>'
    : '';
  box.innerHTML=html+'</table></div>'+downloadBox;
 }
@@ -618,7 +618,7 @@ async function downloadRelievingDocument(date){
    });
    if(!resp.ok){
      const data=await resp.json().catch(()=>({}));
-     setMsg(esc(data.error||'The relieving document could not be generated.'),'err');
+     setMsg(esc(data.error||'The relieving document could not be generated.')+(data.missing?' Missing reliever assignment(s): '+esc(data.missing):''),'err');
      return;
    }
    const blob=await resp.blob();
