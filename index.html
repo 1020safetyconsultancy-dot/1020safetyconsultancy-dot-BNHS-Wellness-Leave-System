@@ -74,7 +74,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 <div class="card">
   <div class="calendarHead">
     <div><h3 style="margin:0">Relieving Teachers by Leave Date</h3>
-    <div class="muted">Choose any plotted Wellness Leave or Sick Leave date. Relieving assignments are saved separately for every date.</div></div>
+    <div class="muted">Choose any plotted Wellness Leave date. Relieving assignments are saved separately for every date.</div></div>
   </div>
   <div class="plotbar" style="margin-top:14px">
     <div class="field" style="min-width:260px">
@@ -474,7 +474,7 @@ function render(){
  $('remainBadge').textContent=Math.max(0,5-wellnessMine.length)+' Wellness remaining • '+sickMine.length+' Sick Leave';
  renderLeaveDateSelector(mine);
  renderCalendar();renderRelievers();renderMyDaySchedule();renderSchoolAnnouncements();if(profile.role==='admin'){renderStaffAdmin();renderAdminScheduleList();renderSlotManager();}if(profile.role==='principal'||profile.role==='admin'){renderPrincipalDashboard();}if(profile.role==='administrative_officer'||profile.role==='admin'){renderAdminOfficerDashboard();}
- $('myLeaves').innerHTML=mine.length?'<table><tr><th>Date</th><th>Leave Type</th><th>Day</th><th>Action</th></tr>'+mine.map(x=>'<tr><td><b>'+esc(x.leave_date)+'</b></td><td><span class="badge">'+(x.leave_type==='sick'?'SICK LEAVE':'WELLNESS LEAVE')+'</span></td><td>'+new Date(x.leave_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'})+'</td><td><button class="btn danger" onclick="removeLeave('+x.id+')">Remove</button></td></tr>').join('')+'</table>':'<p class="muted">You have not plotted any leave yet.</p>'
+ $('myLeaves').innerHTML=mine.length?'<table><tr><th>Date</th><th>Leave Type</th><th>Day</th><th>Action</th></tr>'+mine.map(x=>'<tr><td><b>'+esc(x.leave_date)+'</b></td><td><span class="badge">'+(x.leave_type==='vacation'?'VACATION LEAVE':'WELLNESS LEAVE')+'</span></td><td>'+new Date(x.leave_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'})+'</td><td>'+(x.leave_type==='wellness'?'<button class="btn primary" onclick="downloadRelievingDocument(\''+x.leave_date+'\')">Download Relieving Document</button> ':'')+'<button class="btn danger" onclick="removeLeave('+x.id+')">Remove</button></td></tr>').join('')+'</table>':'<p class="muted">You have not plotted any leave yet.</p>'
 }
 function renderCalendar(){
  const y=cursor.getFullYear(),m=cursor.getMonth(),first=new Date(y,m,1),offset=first.getDay(),days=new Date(y,m+1,0).getDate(),selected=$('leaveDate').value;
@@ -595,8 +595,47 @@ function renderRelievers(){
    }
    html+='<tr><td><b>'+esc(e.period)+'</b></td><td>'+esc(e.section)+'<br><span class="muted">'+esc(e.subject||'')+'</span></td><td>'+esc(e.grade_level||'—')+'</td><td>'+control+'</td><td>'+(assigned?'<span class="badge">ASSIGNED</span>':'<span class="muted">For validation</span>')+'</td></tr>';
  });
- box.innerHTML=html+'</table></div>';
+ const assignedCount=affected.filter(e=>assignments.some(a=>a.leave_date===date&&a.schedule_id===e.id)).length;
+ const ready=assignedCount===affected.length&&leaveRow?.leave_type==='wellness';
+ const downloadBox=leaveRow?.leave_type==='wellness'
+   ? '<div class="notice '+(ready?'ok':'')+'" style="margin-top:12px"><b>Relieving Document:</b> '+assignedCount+' of '+affected.length+' affected class(es) have assigned relievers.<br><button class="btn primary" style="margin-top:8px" '+(ready?'':'disabled')+' onclick="downloadRelievingDocument(\''+date+'\')">Download Relieving Document (.docx)</button>'+(ready?'':' <span class="muted">Complete all reliever assignments first.</span>')+'</div>'
+   : '';
+ box.innerHTML=html+'</table></div>'+downloadBox;
 }
+async function downloadRelievingDocument(date){
+ const {data:{session}}=await sb.auth.getSession();
+ if(!session?.access_token){setMsg('Your session expired. Please sign in again.','err');return}
+ setMsg('Preparing your relieving document…');
+ try{
+   const resp=await fetch(cfg.supabaseUrl+'/functions/v1/download-relieving-document',{
+     method:'POST',
+     headers:{
+       'Authorization':'Bearer '+session.access_token,
+       'apikey':cfg.supabasePublishableKey,
+       'Content-Type':'application/json'
+     },
+     body:JSON.stringify({leave_date:date})
+   });
+   if(!resp.ok){
+     const data=await resp.json().catch(()=>({}));
+     setMsg(esc(data.error||'The relieving document could not be generated.'),'err');
+     return;
+   }
+   const blob=await resp.blob();
+   const cd=resp.headers.get('content-disposition')||'';
+   const match=cd.match(/filename="([^"]+)"/i);
+   const filename=match?.[1]||('Relieving_Document_'+date+'.docx');
+   const url=URL.createObjectURL(blob);
+   const a=document.createElement('a');
+   a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
+   setTimeout(()=>URL.revokeObjectURL(url),1000);
+   setMsg('<b>Relieving document ready.</b> The Word file has been downloaded.','ok');
+ }catch(e){
+   setMsg('The relieving document could not be downloaded. Please try again.','err');
+ }
+}
+window.downloadRelievingDocument=downloadRelievingDocument;
+
 function rememberRelieverChoice(scheduleId,value){
  const date=$('leaveDate').value;
  pendingRelieverSelections[date+'|'+scheduleId]=value||'';
