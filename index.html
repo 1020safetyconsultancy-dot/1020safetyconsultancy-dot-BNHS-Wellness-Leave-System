@@ -223,6 +223,19 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
   </div>
   <div id="slotMsg"></div>
 </div>
+<div class="card admin-collapsible" id="blockedDatesAdminCard" data-collapsible="true" style="display:none">
+  <div class="calendarHead"><div>
+    <h3 style="margin:0">Admin: Block Dates</h3>
+    <div class="muted">Block specific dates so teachers cannot plot Wellness Leave or Vacation Leave on those dates. You can also remove a block later.</div>
+  </div></div>
+  <div class="plotbar" style="margin-top:12px">
+    <div class="field"><label>Date to Block</label><input id="blockedDateInput" type="date"></div>
+    <div class="field" style="min-width:260px;flex:1"><label>Reason</label><input id="blockedDateReason" type="text" placeholder="e.g. Examination, School Activity, INSET"></div>
+    <button class="btn danger" id="blockDateBtn">Block Date</button>
+  </div>
+  <div id="blockedDateMsg"></div>
+  <div id="blockedDatesList" class="tablewrap" style="margin-top:12px"></div>
+</div>
 <div class="card admin-collapsible" id="adminResetCard" data-collapsible="true" style="display:none;border-color:#fecaca">
   <div class="calendarHead">
     <div>
@@ -473,10 +486,44 @@ function render(){
  $('usedBadge').textContent=wellnessMine.length+'/5 Wellness days used';
  $('remainBadge').textContent=Math.max(0,5-wellnessMine.length)+' Wellness remaining • '+sickMine.length+' Sick Leave';
  renderLeaveDateSelector(mine);
- renderCalendar();renderRelievers();renderMyDaySchedule();renderSchoolAnnouncements();if(profile.role==='admin'){renderStaffAdmin();renderAdminScheduleList();renderSlotManager();}if(profile.role==='principal'||profile.role==='admin'){renderPrincipalDashboard();}if(profile.role==='administrative_officer'||profile.role==='admin'){renderAdminOfficerDashboard();}
+ renderCalendar();renderRelievers();renderMyDaySchedule();renderSchoolAnnouncements();if(profile.role==='admin'){renderStaffAdmin();renderAdminScheduleList();renderSlotManager();renderBlockedDatesAdmin();}if(profile.role==='principal'||profile.role==='admin'){renderPrincipalDashboard();}if(profile.role==='administrative_officer'||profile.role==='admin'){renderAdminOfficerDashboard();}
  $('myLeaves').innerHTML=mine.length?'<table><tr><th>Date</th><th>Leave Type</th><th>Day</th><th>Action</th></tr>'+mine.map(x=>'<tr><td><b>'+esc(x.leave_date)+'</b></td><td><span class="badge">'+(x.leave_type==='vacation'?'VACATION LEAVE':'WELLNESS LEAVE')+'</span></td><td>'+new Date(x.leave_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'})+'</td><td>'+(x.leave_type==='wellness'?'<button class="btn primary" data-download-relieving="'+x.leave_date+'" type="button">Download Relieving Document</button><span class="downloadStatus" style="margin-left:8px;font-size:12px"></span> ':'')+'<button class="btn danger" onclick="removeLeave('+x.id+')">Remove</button></td></tr>').join('')+'</table>':'<p class="muted">You have not plotted any leave yet.</p>';
  bindRelievingDownloadButtons();
 }
+function renderBlockedDatesAdmin(){
+ const box=$('blockedDatesList');
+ if(!box)return;
+ const rows=Object.entries(blockedDates).sort((a,b)=>a[0].localeCompare(b[0]));
+ box.innerHTML=rows.length
+  ? '<table><tr><th>Date</th><th>Day</th><th>Reason</th><th>Action</th></tr>'
+    +rows.map(([d,r])=>'<tr><td><b>'+esc(d)+'</b></td><td>'+new Date(d+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'})+'</td><td>'+esc(r||'Blocked')+'</td><td><button class="btn secondary" type="button" onclick="unblockSchoolDate(\''+d+'\')">Unblock</button></td></tr>').join('')
+    +'</table>'
+  : '<p class="muted">No blocked dates configured.</p>';
+}
+
+async function blockSchoolDate(){
+ const d=$('blockedDateInput').value;
+ const reason=$('blockedDateReason').value.trim()||'Blocked by Administrator';
+ if(!d){$('blockedDateMsg').innerHTML='<div class="notice err">Please select a date.</div>';return}
+ if(weekend(d)){$('blockedDateMsg').innerHTML='<div class="notice err">Saturday and Sunday are already unavailable.</div>';return}
+ const btn=$('blockDateBtn');btn.disabled=true;
+ const {error}=await sb.from('wellness_portal_blocked_dates').upsert({blocked_date:d,reason},{onConflict:'blocked_date'});
+ btn.disabled=false;
+ if(error){$('blockedDateMsg').innerHTML='<div class="notice err">'+esc(error.message)+'</div>';return}
+ $('blockedDateMsg').innerHTML='<div class="notice ok"><b>'+esc(d)+'</b> is now blocked for leave plotting.</div>';
+ $('blockedDateReason').value='';
+ await refresh();
+}
+
+async function unblockSchoolDate(d){
+ if(!confirm('Unblock '+d+'? Teachers will be able to plot leave on this date again if slots/rules allow.'))return;
+ const {error}=await sb.from('wellness_portal_blocked_dates').delete().eq('blocked_date',d);
+ if(error){$('blockedDateMsg').innerHTML='<div class="notice err">'+esc(error.message)+'</div>';return}
+ $('blockedDateMsg').innerHTML='<div class="notice ok"><b>'+esc(d)+'</b> has been unblocked.</div>';
+ await refresh();
+}
+window.unblockSchoolDate=unblockSchoolDate;
+
 function renderCalendar(){
  const y=cursor.getFullYear(),m=cursor.getMonth(),first=new Date(y,m,1),offset=first.getDay(),days=new Date(y,m+1,0).getDate(),selected=$('leaveDate').value;
  $('monthTitle').textContent=first.toLocaleDateString('en-US',{month:'long',year:'numeric'})+' — Wellness Leave Slots';
