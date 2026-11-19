@@ -70,7 +70,18 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 <button class="btn primary" id="plotBtn">Plot My Leave</button>
 </div>
 <div class="notice"><b>Wellness Leave rules:</b> maximum 5 days per teacher, maximum 3 consecutive school days, and maximum 2 Wellness Leave slots per date. Saturdays, Sundays, Summative Test dates, Term Exam dates, and designated post-Wellness-Break dates are unavailable.</div><div id="msg"></div></div>
-<div class="card"><div class="calendarHead"><div><h2 id="monthTitle" style="margin:0">Wellness Leave Calendar</h2><div class="muted">Click an available school day to select it.</div></div><div class="nav"><button class="btn secondary" id="prevBtn">‹ Previous</button><button class="btn secondary" id="todayBtn">Today</button><button class="btn secondary" id="nextBtn">Next ›</button></div></div><div class="calendarScroll"><div id="calendar" class="grid"></div></div></div>
+<div class="card"><div class="calendarHead"><div><h2 id="monthTitle" style="margin:0">Wellness Leave Calendar</h2><div class="muted">Click an available school day to select it.</div></div><div class="nav"><button class="btn secondary" id="prevBtn">‹ Previous</button><button class="btn secondary" id="todayBtn">Today</button><button class="btn secondary" id="nextBtn">Next ›</button></div></div><div class="calendarScroll"><div id="calendar" class="grid"></div></div><div id="adminCalendarActions" class="notice" style="display:none;margin-top:12px">
+  <div style="font-weight:800;margin-bottom:8px">Admin Calendar Actions — <span id="adminCalendarDateLabel"></span></div>
+  <div class="plotbar">
+    <div class="field" style="min-width:240px;flex:1"><label>Block Reason</label><input id="adminCalendarBlockReason" type="text" placeholder="e.g. Examination, School Activity, INSET"></div>
+    <button class="btn danger" id="adminCalendarBlockBtn" type="button">Block Date</button>
+    <button class="btn secondary" id="adminCalendarUnblockBtn" type="button">Unblock Date</button>
+    <button class="btn primary" id="adminCalendarAddSlotBtn" type="button">+ Add Slot</button>
+    <button class="btn danger" id="adminCalendarSubtractSlotBtn" type="button">− Subtract Slot</button>
+    <button class="btn secondary" id="adminCalendarResetSlotBtn" type="button">Reset to 2</button>
+  </div>
+  <div id="adminCalendarActionMsg" style="margin-top:8px"></div>
+</div></div>
 <div class="card">
   <div class="calendarHead">
     <div><h3 style="margin:0">Relieving Teachers by Leave Date</h3>
@@ -528,12 +539,70 @@ function renderCalendar(){
  const y=cursor.getFullYear(),m=cursor.getMonth(),first=new Date(y,m,1),offset=first.getDay(),days=new Date(y,m+1,0).getDate(),selected=$('leaveDate').value;
  $('monthTitle').textContent=first.toLocaleDateString('en-US',{month:'long',year:'numeric'})+' — Wellness Leave Slots';
  let h=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(x=>'<div class="weekday">'+x+'</div>').join('');
- for(let i=0;i<42;i++){const n=i-offset+1;if(n<1||n>days){h+='<div class="day blank"></div>';continue}
-  const d=y+'-'+String(m+1).padStart(2,'0')+'-'+String(n).padStart(2,'0'),wk=weekend(d),blocked=blockedDates[d],rows=leaves.filter(x=>x.leave_date===d),wellnessRows=rows.filter(x=>x.leave_type==='wellness'),sickRows=rows.filter(x=>x.leave_type==='sick'),capacity=slotOverrides[d]||2,left=Math.max(0,capacity-wellnessRows.length),status=(wk||blocked)?'weekend':left===2?'open':left===1?'partial':'full',label=blocked?'BLOCKED — '+esc(blocked):(wk?'WEEKEND — unavailable':left===0?'Wellness FULL — 0 of '+capacity+' slots available':left+' of '+capacity+' Wellness slot'+(capacity===1?'':'s')+' available'),names=rows.map(x=>'• '+esc(profiles[x.user_id]?.teacher_name||'Teacher')+' — '+(x.leave_type==='sick'?'Sick':'Wellness')).join('<br>');
-  h+='<button class="day '+status+(d===selected&&!wk&&!blocked?' selected':'')+'" '+(wk||blocked||left===0?'disabled':'data-date="'+d+'"')+'><span class="num">'+n+'</span>'+(d===today()?'<span class="today">TODAY</span>':'')+'<br><span class="pill '+status+'">'+label+'</span>'+(names?'<div class="names">'+names+'</div>':'')+'</button>'
+ for(let i=0;i<42;i++){
+  const n=i-offset+1;
+  if(n<1||n>days){h+='<div class="day blank"></div>';continue}
+  const d=y+'-'+String(m+1).padStart(2,'0')+'-'+String(n).padStart(2,'0');
+  const wk=weekend(d),blocked=blockedDates[d],rows=leaves.filter(x=>x.leave_date===d),wellnessRows=rows.filter(x=>x.leave_type==='wellness');
+  const capacity=slotOverrides[d]||2,left=Math.max(0,capacity-wellnessRows.length);
+  const status=(wk||blocked)?'weekend':left===0?'full':left===1?'partial':'open';
+  const label=blocked?'BLOCKED — '+esc(blocked):(wk?'WEEKEND — unavailable':left===0?'Wellness FULL — 0 of '+capacity+' slots available':left+' of '+capacity+' Wellness slot'+(left===1?'':'s')+' available');
+  const names=rows.map(x=>'• '+esc(profiles[x.user_id]?.teacher_name||'Teacher')+' — '+(x.leave_type==='vacation'?'Vacation':'Wellness')).join('<br>');
+  const adminClickable=profile?.role==='admin'&&!wk;
+  const teacherClickable=!wk&&!blocked&&left>0;
+  const attrs=adminClickable?'data-admin-date="'+d+'"':(teacherClickable?'data-date="'+d+'"':'disabled');
+  h+='<button class="day '+status+(d===selected&&!wk&&!blocked?' selected':'')+'" '+attrs+'><span class="num">'+n+'</span>'+(d===today()?'<span class="today">TODAY</span>':'')+'<br><span class="pill '+status+'">'+label+'</span>'+(names?'<div class="names">'+names+'</div>':'')+'</button>';
  }
- $('calendar').innerHTML=h;document.querySelectorAll('.day[data-date]').forEach(b=>b.addEventListener('click',()=>{$('leaveDate').value=b.dataset.date;renderCalendar();setMsg('<b>'+esc(b.dataset.date)+'</b> selected.')}))
+ $('calendar').innerHTML=h;
+ document.querySelectorAll('.day[data-date]').forEach(b=>b.addEventListener('click',()=>{
+   $('leaveDate').value=b.dataset.date;renderCalendar();setMsg('<b>'+esc(b.dataset.date)+'</b> selected.');
+ }));
+ document.querySelectorAll('.day[data-admin-date]').forEach(b=>b.addEventListener('click',()=>{
+   const d=b.dataset.adminDate;$('leaveDate').value=d;openAdminCalendarActions(d);renderCalendar();
+ }));
 }
+function openAdminCalendarActions(d){
+ if(profile?.role!=='admin')return;
+ const panel=$('adminCalendarActions'); if(!panel)return;
+ panel.style.display='block';panel.dataset.date=d;
+ $('adminCalendarDateLabel').textContent=niceDate(d);
+ const blocked=!!blockedDates[d],cap=slotOverrides[d]||2,booked=leaves.filter(x=>x.leave_date===d&&x.leave_type==='wellness').length;
+ $('adminCalendarBlockBtn').style.display=blocked?'none':'inline-block';
+ $('adminCalendarUnblockBtn').style.display=blocked?'inline-block':'none';
+ $('adminCalendarBlockReason').value=blocked?(blockedDates[d]||''):'';
+ $('adminCalendarActionMsg').innerHTML='<span class="badge">Current capacity: '+cap+' • Booked: '+booked+' • Available: '+Math.max(0,cap-booked)+'</span>';
+}
+async function adminCalendarBlock(){
+ const d=$('adminCalendarActions').dataset.date;if(!d)return;
+ const reason=$('adminCalendarBlockReason').value.trim()||'Blocked by Administrator';
+ const {error}=await sb.from('wellness_portal_blocked_dates').upsert({blocked_date:d,reason},{onConflict:'blocked_date'});
+ if(error){$('adminCalendarActionMsg').innerHTML='<div class="notice err">'+esc(error.message)+'</div>';return}
+ await refresh();openAdminCalendarActions(d);
+}
+async function adminCalendarUnblock(){
+ const d=$('adminCalendarActions').dataset.date;if(!d)return;
+ const {error}=await sb.from('wellness_portal_blocked_dates').delete().eq('blocked_date',d);
+ if(error){$('adminCalendarActionMsg').innerHTML='<div class="notice err">'+esc(error.message)+'</div>';return}
+ await refresh();openAdminCalendarActions(d);
+}
+async function adminCalendarAdjustSlot(delta){
+ const d=$('adminCalendarActions').dataset.date;if(!d)return;
+ const current=slotOverrides[d]||2,booked=leaves.filter(x=>x.leave_date===d&&x.leave_type==='wellness').length;
+ let next=current+delta;if(next<2)next=2;
+ if(next<booked){$('adminCalendarActionMsg').innerHTML='<div class="notice err">Cannot reduce below '+booked+' existing Wellness Leave booking(s).</div>';return}
+ const {error}=await sb.from('wellness_portal_slot_overrides').upsert({slot_date:d,total_slots:next,updated_by:user.id},{onConflict:'slot_date'});
+ if(error){$('adminCalendarActionMsg').innerHTML='<div class="notice err">'+esc(error.message)+'</div>';return}
+ await refresh();openAdminCalendarActions(d);
+}
+async function adminCalendarResetSlot(){
+ const d=$('adminCalendarActions').dataset.date;if(!d)return;
+ const booked=leaves.filter(x=>x.leave_date===d&&x.leave_type==='wellness').length;
+ if(booked>2){$('adminCalendarActionMsg').innerHTML='<div class="notice err">Cannot reset to 2 because '+booked+' Wellness Leave bookings already exist.</div>';return}
+ const {error}=await sb.from('wellness_portal_slot_overrides').delete().eq('slot_date',d);
+ if(error){$('adminCalendarActionMsg').innerHTML='<div class="notice err">'+esc(error.message)+'</div>';return}
+ await refresh();openAdminCalendarActions(d);
+}
+
 function dayName(date){return new Date(date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'})}
 function niceDate(date){
  return new Date(date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
