@@ -74,11 +74,11 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
   <div style="font-weight:800;margin-bottom:8px">Admin Calendar Actions — <span id="adminCalendarDateLabel"></span></div>
   <div class="plotbar">
     <div class="field" style="min-width:240px;flex:1"><label>Block Reason</label><input id="adminCalendarBlockReason" type="text" placeholder="e.g. Examination, School Activity, INSET"></div>
-    <button class="btn danger" id="adminCalendarBlockBtn" type="button">Block Date</button>
-    <button class="btn secondary" id="adminCalendarUnblockBtn" type="button">Unblock Date</button>
-    <button class="btn primary" id="adminCalendarAddSlotBtn" type="button">+ Add Slot</button>
-    <button class="btn danger" id="adminCalendarSubtractSlotBtn" type="button">− Subtract Slot</button>
-    <button class="btn secondary" id="adminCalendarResetSlotBtn" type="button">Reset to 2</button>
+    <button class="btn danger" id="adminCalendarBlockBtn" type="button" style="cursor:pointer;pointer-events:auto">Block Date</button>
+    <button class="btn secondary" id="adminCalendarUnblockBtn" type="button" style="cursor:pointer;pointer-events:auto">Unblock Date</button>
+    <button class="btn primary" id="adminCalendarAddSlotBtn" type="button" style="cursor:pointer;pointer-events:auto">+ Add Slot</button>
+    <button class="btn danger" id="adminCalendarSubtractSlotBtn" type="button" style="cursor:pointer;pointer-events:auto">− Subtract Slot</button>
+    <button class="btn secondary" id="adminCalendarResetSlotBtn" type="button" style="cursor:pointer;pointer-events:auto">Reset to 2</button>
   </div>
   <div id="adminCalendarActionMsg" style="margin-top:8px"></div>
 </div></div>
@@ -602,6 +602,11 @@ async function adminCalendarResetSlot(){
  if(error){$('adminCalendarActionMsg').innerHTML='<div class="notice err">'+esc(error.message)+'</div>';return}
  await refresh();openAdminCalendarActions(d);
 }
+
+window.adminCalendarBlock=adminCalendarBlock;
+window.adminCalendarUnblock=adminCalendarUnblock;
+window.adminCalendarAdjustSlot=adminCalendarAdjustSlot;
+window.adminCalendarResetSlot=adminCalendarResetSlot;
 
 function dayName(date){return new Date(date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'})}
 function niceDate(date){
@@ -1427,6 +1432,30 @@ start().catch(err=>{
  if(card) card.style.display='block';
  const msg=document.getElementById('loginMsg');
  if(msg) msg.innerHTML='<div class="notice err">The portal loaded but could not connect to the online database. Please refresh the page and try again.</div>';
+});
+
+/* data-admin-calendar-action-handler */
+document.addEventListener('click',async function(e){
+  const b=e.target.closest('#adminCalendarBlockBtn,#adminCalendarUnblockBtn,#adminCalendarAddSlotBtn,#adminCalendarSubtractSlotBtn,#adminCalendarResetSlotBtn');
+  if(!b)return;
+  e.preventDefault();
+  e.stopPropagation();
+  if(b.disabled)return;
+  const old=b.textContent;
+  b.disabled=true;
+  try{
+    if(b.id==='adminCalendarBlockBtn') await adminCalendarBlock();
+    else if(b.id==='adminCalendarUnblockBtn') await adminCalendarUnblock();
+    else if(b.id==='adminCalendarAddSlotBtn') await adminCalendarAdjustSlot(1);
+    else if(b.id==='adminCalendarSubtractSlotBtn') await adminCalendarAdjustSlot(-1);
+    else if(b.id==='adminCalendarResetSlotBtn') await adminCalendarResetSlot();
+  }catch(err){
+    const box=document.getElementById('adminCalendarActionMsg');
+    if(box)box.innerHTML='<div class="notice err">'+esc(err?.message||'Action failed. Please try again.')+'</div>';
+  }finally{
+    b.disabled=false;
+    b.textContent=old;
+  }
 });
 </script>
 <!-- deployment refresh 2026-10-05 -->
