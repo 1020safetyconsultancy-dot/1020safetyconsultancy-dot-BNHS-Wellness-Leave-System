@@ -654,7 +654,7 @@ body.portal-logged-in .top{position:sticky;top:0;z-index:45;box-shadow:0 4px 20p
 <noscript><div style="max-width:760px;margin:20px auto;padding:16px;background:#fff1f2;border:1px solid #fecdd3;border-radius:12px;color:#9f1239;font-family:Arial">JavaScript is required to open the BNHS Wellness Leave Portal.</div></noscript>
 <script src="online-config.js"></script>
 <script>
-const PORTAL_BUILD_ID='2026-11-27-0015';
+const PORTAL_BUILD_ID='2026-11-27-0025';
 const cfg=window.BNHS_ONLINE_CONFIG||{};let sb=null,user=null,profile=null,enteringUserId=null,profiles={},leaves=[],schedules=[],assignments=[],staff=[],activationStatus={},activationCodes={},slotOverrides={},announcements=[],principalSummary={},blockedDates={},pendingRelieverSelections={},cursor=new Date();cursor.setDate(1);
 const $=id=>document.getElementById(id),iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'),today=()=>iso(new Date());
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1673,8 +1673,20 @@ async function editStaff(id){
  if(!newName)return;
  const newType=(prompt('Type teacher or employee:',s.staff_type)||s.staff_type).trim().toLowerCase();
  if(!['teacher','employee'].includes(newType)){alert('Type must be teacher or employee.');return}
- const {error}=await sb.from('wellness_portal_staff').update({staff_name:newName,staff_type:newType}).eq('id',id);
- if(error)$('staffMsg').innerHTML='<div class="notice err">'+esc(error.message)+'</div>';else await refresh();
+ if(newName===s.staff_name&&newType===s.staff_type)return;
+
+ $('staffMsg').innerHTML='<div class="notice">Updating <b>'+esc(s.staff_name)+'</b>…<br><span class="muted">The existing account and password will be preserved.</span></div>';
+ const {data,error}=await sb.rpc('admin_rename_staff_preserve_account',{
+   p_staff_id:id,
+   p_new_name:newName,
+   p_new_type:newType
+ });
+ if(error){
+   $('staffMsg').innerHTML='<div class="notice err">'+esc(error.message)+'</div>';
+   return;
+ }
+ $('staffMsg').innerHTML='<div class="notice ok"><b>'+esc(s.staff_name)+' updated to '+esc(newName)+'.</b><br>The same login account and password were kept. No password change was made.</div>';
+ await refresh();
 }
 window.editStaff=editStaff;
 async function generateActivationCode(name){
