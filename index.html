@@ -212,9 +212,20 @@ body.portal-logged-in .top{position:sticky;top:0;z-index:45;box-shadow:0 4px 20p
 </div>
 <div class="card" id="schoolAnnouncementsCard">
   <div class="calendarHead"><div>
-    <h3 style="margin:0">School Announcements</h3>
-    <div class="muted">Latest notices from the School Principal.</div>
+    <h3 style="margin:0">Official Memos & Announcements</h3>
+    <div class="muted">Official notices posted by the School Principal, Administrative Officer, or System Administrator.</div>
   </div></div>
+  <div id="officialMemoComposer" class="notice" style="display:none;margin-top:12px">
+    <div style="font-weight:900;margin-bottom:8px">Post Official Memo</div>
+    <div class="plotbar">
+      <div class="field" style="min-width:320px;flex:1">
+        <label>Memo / Announcement</label>
+        <textarea id="officialMemoText" rows="4" placeholder="Type the official memo or announcement here..." style="width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:10px;font-size:14px;resize:vertical"></textarea>
+      </div>
+      <button class="btn primary" id="officialMemoPostBtn" type="button">Post Memo</button>
+    </div>
+    <div id="officialMemoMsg"></div>
+  </div>
   <div id="schoolAnnouncements" style="margin-top:10px"></div>
 </div>
 
@@ -772,6 +783,42 @@ function renderPortalDashboard(){
  let saved='dashboard';try{saved=sessionStorage.getItem('bnhs_portal_module')||'dashboard'}catch(e){}
  showPortalModule(portalModuleAllowed(saved)?saved:'dashboard',{keepScroll:true});
 }
+
+function canManageOfficialMemos(){
+ return ['admin','principal','administrative_officer'].includes(profile?.role);
+}
+async function postOfficialMemo(){
+ if(!canManageOfficialMemos())return;
+ const input=$('officialMemoText');
+ const message=input?.value.trim();
+ if(!message){
+   if($('officialMemoMsg'))$('officialMemoMsg').innerHTML='<div class="notice err">Enter a memo or announcement.</div>';
+   return;
+ }
+ const {error}=await sb.from('wellness_portal_announcements').insert({
+   message,
+   posted_by:user.id,
+   posted_by_name:profile.teacher_name,
+   active:true
+ });
+ if(error){
+   if($('officialMemoMsg'))$('officialMemoMsg').innerHTML='<div class="notice err">'+esc(error.message)+'</div>';
+   return;
+ }
+ input.value='';
+ if($('officialMemoMsg'))$('officialMemoMsg').innerHTML='<div class="notice ok">Official memo posted successfully.</div>';
+ await refresh();
+}
+async function removeOfficialMemo(id){
+ if(!canManageOfficialMemos())return;
+ const {error}=await sb.from('wellness_portal_announcements').update({active:false}).eq('id',id);
+ if(error){
+   if($('officialMemoMsg'))$('officialMemoMsg').innerHTML='<div class="notice err">'+esc(error.message)+'</div>';
+   return;
+ }
+ await refresh();
+}
+window.removeOfficialMemo=removeOfficialMemo;
 
 function renderDashboardMemos(){
  const box=$('dashboardMemos');if(!box)return;
@@ -1385,15 +1432,16 @@ function renderStaffAdmin(){
 }
 function renderSchoolAnnouncements(){
  const box=$('schoolAnnouncements');if(!box)return;
- const active=(announcements||[]).filter(a=>a.active!==false).slice(0,8);
- if(!active.length){
-   box.innerHTML='<p class="muted">No current school announcements.</p>';
-   return;
- }
- box.innerHTML=active.map(a=>{
-   const dt=String(a.created_at||'').slice(0,10);
-   return '<div class="notice" style="margin-bottom:8px"><div><b>'+esc(a.message)+'</b></div><div class="muted" style="margin-top:4px">Posted by '+esc(a.posted_by_name||'School Principal')+(dt?' • '+esc(dt):'')+'</div></div>';
- }).join('');
+ const composer=$('officialMemoComposer');
+ if(composer)composer.style.display=canManageOfficialMemos()?'block':'none';
+ const active=(announcements||[]).filter(a=>a.active!==false);
+ box.innerHTML=active.length
+  ? '<div class="dashboard-memo-list">'+active.map(a=>{
+      const dt=a.created_at?new Date(a.created_at).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}):'';
+      const remove=canManageOfficialMemos()?'<button class="btn danger" type="button" onclick="removeOfficialMemo('+a.id+')">Remove</button>':'';
+      return '<div class="dashboard-memo-item"><div class="dashboard-memo-top"><div><div class="dashboard-memo-title">Official Memo / Announcement</div><div class="dashboard-memo-meta">Posted by '+esc(a.posted_by_name||'School Administration')+(dt?' • '+esc(dt):'')+'</div></div>'+remove+'</div><div class="dashboard-memo-text">'+esc(a.message||'')+'</div></div>';
+    }).join('')+'</div>'
+  : '<div class="notice">No official memo has been posted yet.</div>';
 }
 
 function buildTeacherLeaveBalanceTable(){
@@ -1501,29 +1549,18 @@ function renderPrincipalReport(){
 window.renderPrincipalReport=renderPrincipalReport;
 
 async function postPrincipalAnnouncement(){
- if(!(profile?.role==='principal'||profile?.role==='admin'))return;
- const message=$('principalAnnouncementText').value.trim();
- if(!message){$('principalAnnouncementMsg').innerHTML='<div class="notice err">Enter an announcement or note.</div>';return}
- const {error}=await sb.from('wellness_portal_announcements').insert({
-   message,
-   posted_by:user.id,
-   posted_by_name:profile.teacher_name,
-   active:true
- });
- if(error){
-   $('principalAnnouncementMsg').innerHTML='<div class="notice err">'+esc(error.message)+'</div>';
-   return;
- }
- $('principalAnnouncementText').value='';
- $('principalAnnouncementMsg').innerHTML='<div class="notice ok">Announcement posted.</div>';
+ if(!canManageOfficialMemos())return;
+ const message=$('principalAnnouncementText')?.value.trim();
+ if(!message){if($('principalAnnouncementMsg'))$('principalAnnouncementMsg').innerHTML='<div class="notice err">Enter an announcement or note.</div>';return}
+ const {error}=await sb.from('wellness_portal_announcements').insert({message,posted_by:user.id,posted_by_name:profile.teacher_name,active:true});
+ if(error){if($('principalAnnouncementMsg'))$('principalAnnouncementMsg').innerHTML='<div class="notice err">'+esc(error.message)+'</div>';return}
+ if($('principalAnnouncementText'))$('principalAnnouncementText').value='';
+ if($('principalAnnouncementMsg'))$('principalAnnouncementMsg').innerHTML='<div class="notice ok">Announcement posted.</div>';
  await refresh();
 }
 
 async function removePrincipalAnnouncement(id){
- if(!(profile?.role==='principal'||profile?.role==='admin'))return;
- const {error}=await sb.from('wellness_portal_announcements').update({active:false}).eq('id',id);
- if(error)$('principalAnnouncementMsg').innerHTML='<div class="notice err">'+esc(error.message)+'</div>';
- else await refresh();
+ return removeOfficialMemo(id);
 }
 window.removePrincipalAnnouncement=removePrincipalAnnouncement;
 
@@ -1803,6 +1840,8 @@ document.addEventListener('click',function(e){
  if(b.id==='printLeaveSummaryBtn')printMyLeaveSummary();
  if(b.id==='printMyScheduleBtn')printMySchedule();
 });
+
+$('officialMemoPostBtn')?.addEventListener('click',postOfficialMemo);
 </script>
 <!-- deployment refresh 2026-10-05 -->
 </body>
