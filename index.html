@@ -106,6 +106,16 @@ body.portal-logged-in .top{position:sticky;top:0;z-index:45;box-shadow:0 4px 20p
 .portal-nav-btn[style*="display: none"]{display:none!important}
 .portal-sidebar::-webkit-scrollbar{width:6px}.portal-sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,.22);border-radius:8px}
 
+
+/* ===== Document Center ===== */
+.document-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.document-tile{border:1px solid #dbe7f3;border-radius:16px;padding:16px;background:linear-gradient(145deg,#fff,#f8fbff)}
+.document-icon{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:#eaf4ff;color:#165fae;font-weight:900;margin-bottom:10px}
+.document-tile h4{margin:0 0 5px;color:#173b60}.document-tile p{margin:0 0 12px;color:#718399;font-size:12px;line-height:1.45}
+.document-status{font-size:11px;font-weight:800;margin-left:6px}
+.document-list{margin-top:14px}
+@media(max-width:760px){.document-grid{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body>
@@ -133,7 +143,8 @@ body.portal-logged-in .top{position:sticky;top:0;z-index:45;box-shadow:0 4px 20p
   <button class="portal-nav-btn" data-module="announcements"><span class="portal-nav-icon">!</span>Announcements</button>
   <button class="portal-nav-btn" data-module="leave"><span class="portal-nav-icon">L</span>Leave Management</button>
   <button class="portal-nav-btn" data-module="calendar"><span class="portal-nav-icon">C</span>School Calendar</button>
-  <button class="portal-nav-btn" data-module="relievers"><span class="portal-nav-icon">R</span>Relievers & Documents</button>
+  <button class="portal-nav-btn" data-module="relievers"><span class="portal-nav-icon">R</span>Relievers</button>
+  <button class="portal-nav-btn" data-module="documents"><span class="portal-nav-icon">D</span>Document Center</button>
   <button class="portal-nav-btn" data-module="schedule"><span class="portal-nav-icon">S</span>Schedules</button>
   <div class="portal-nav-title portal-management-nav">Management</div>
   <button class="portal-nav-btn portal-role-management portal-faculty-nav" data-module="faculty"><span class="portal-nav-icon">F</span>Faculty & Staff</button>
@@ -142,7 +153,7 @@ body.portal-logged-in .top{position:sticky;top:0;z-index:45;box-shadow:0 4px 20p
 </div>
 <div class="portal-main-offset">
 <div class="portal-mobile-nav" id="portalMobileNav">
- <button data-module="dashboard">Dashboard</button><button data-module="leave">Leave</button><button data-module="calendar">Calendar</button><button data-module="relievers">Relievers</button><button data-module="schedule">Schedule</button><button data-module="announcements">Announcements</button>
+ <button data-module="dashboard">Dashboard</button><button data-module="leave">Leave</button><button data-module="calendar">Calendar</button><button data-module="relievers">Relievers</button><button data-module="documents">Documents</button><button data-module="schedule">Schedule</button><button data-module="announcements">Announcements</button>
 </div>
 <div class="portal-hero" id="portalDashboard">
   <div class="portal-hero-top">
@@ -161,7 +172,7 @@ body.portal-logged-in .top{position:sticky;top:0;z-index:45;box-shadow:0 4px 20p
   <div class="portal-quick">
     <button type="button" data-module="leave">+ Plot Leave</button>
     <button type="button" data-module="calendar">View Calendar</button>
-    <button type="button" data-module="relievers">Relieving & Documents</button>
+    <button type="button" data-module="documents">Document Center</button>
     <button type="button" data-module="announcements">School Announcements</button>
   </div>
 </div>
@@ -378,6 +389,36 @@ body.portal-logged-in .top{position:sticky;top:0;z-index:45;box-shadow:0 4px 20p
     <button class="btn danger" id="resetAllLeavesBtn">Reset All Leaves</button>
   </div>
   <div id="resetAllLeavesMsg"></div>
+</div>
+<div class="card" id="documentCenterCard">
+  <div class="calendarHead"><div>
+    <h3 style="margin:0">My Document Center</h3>
+    <div class="muted">Access school documents generated from your existing portal records.</div>
+  </div></div>
+  <div class="document-grid" style="margin-top:14px">
+    <div class="document-tile">
+      <div class="document-icon">L</div>
+      <h4>Leave Summary</h4>
+      <p>Printable summary of your Wellness Leave and Vacation Leave records for the current school year.</p>
+      <button class="btn primary" type="button" id="printLeaveSummaryBtn">Open / Save as PDF</button>
+    </div>
+    <div class="document-tile">
+      <div class="document-icon">S</div>
+      <h4>Teaching Schedule</h4>
+      <p>Printable copy of your active teaching schedule based on the schedule records saved in the portal.</p>
+      <button class="btn secondary" type="button" id="printMyScheduleBtn">Open / Save as PDF</button>
+    </div>
+    <div class="document-tile">
+      <div class="document-icon">R</div>
+      <h4>Relieving Memos</h4>
+      <p>Download your official Word relieving memo for Wellness Leave dates once relievers are assigned.</p>
+      <span class="badge" id="documentRelievingCount">0 available</span>
+    </div>
+  </div>
+  <div class="document-list">
+    <h4 style="margin-bottom:8px">Available Relieving Documents</h4>
+    <div id="documentRelievingList" class="tablewrap"></div>
+  </div>
 </div>
 <div class="card" id="myScheduleCard"><h3>My Schedule for Selected Date</h3><div id="myDaySchedule" class="tablewrap"></div></div>
 <div class="card" id="myLeaveHistoryCard"><h3>My Leave History</h3><div id="myLeaves" class="tablewrap"></div></div>
@@ -619,7 +660,8 @@ const PORTAL_MODULES={
  announcements:{title:'Announcements & Memos',description:'Read the latest school notices and official announcements.',ids:['schoolAnnouncementsCard']},
  leave:{title:'Leave Management',description:'Plot Wellness or Vacation Leave and review your leave history.',ids:['leaveManagementCard','myLeaveHistoryCard']},
  calendar:{title:'School Calendar',description:'View leave availability, blocked dates, and Admin date controls.',ids:['schoolCalendarCard','blockedDatesAdminCard']},
- relievers:{title:'Relievers & Documents',description:'Assign relieving teachers and download completed relieving documents.',ids:['relieverManagementCard']},
+ relievers:{title:'Reliever Management',description:'Assign relieving teachers for affected classes and monitor coverage.',ids:['relieverManagementCard']},
+ documents:{title:'Document Center',description:'Download and print school documents generated from your existing portal records.',ids:['documentCenterCard']},
  schedule:{title:'Class Schedules',description:'View your schedule. Authorized staff can also maintain school schedules.',ids:['myScheduleCard','scheduleAdminCard']},
  faculty:{title:'Faculty & Staff',description:'Manage the school personnel directory, account activation, and staff records.',ids:['staffAdminCard']},
  reports:{title:'Reports & Analytics',description:'School-wide leave, staffing, coverage, and relieving-hour reports.',ids:['principalDashboardCard','adminOfficerDashboardCard']},
@@ -629,7 +671,7 @@ const ALL_PORTAL_MODULE_IDS=[...new Set(Object.values(PORTAL_MODULES).flatMap(x=
 
 function portalModuleAllowed(module){
  if(!profile)return false;
- if(['dashboard','announcements','leave','calendar','relievers','schedule'].includes(module))return true;
+ if(['dashboard','announcements','leave','calendar','relievers','documents','schedule'].includes(module))return true;
  if(module==='faculty')return profile.role==='admin'||profile.role==='administrative_officer';
  if(module==='reports')return ['admin','principal','administrative_officer'].includes(profile.role);
  if(module==='administration')return profile.role==='admin';
@@ -717,11 +759,50 @@ function render(){
  $('usedBadge').textContent=wellnessMine.length+'/5 Wellness days used';
  $('remainBadge').textContent=Math.max(0,5-wellnessMine.length)+' Wellness remaining';
  renderLeaveDateSelector(mine);
- renderCalendar();renderRelievers();renderMyDaySchedule();renderSchoolAnnouncements();if(profile.role==='admin'){renderStaffAdmin();renderAdminScheduleList();renderSlotManager();renderBlockedDatesAdmin();}if(profile.role==='principal'||profile.role==='admin'){renderPrincipalDashboard();}if(profile.role==='administrative_officer'||profile.role==='admin'){renderAdminOfficerDashboard();}
+ renderCalendar();renderRelievers();renderMyDaySchedule();renderSchoolAnnouncements();renderDocumentCenter();if(profile.role==='admin'){renderStaffAdmin();renderAdminScheduleList();renderSlotManager();renderBlockedDatesAdmin();}if(profile.role==='principal'||profile.role==='admin'){renderPrincipalDashboard();}if(profile.role==='administrative_officer'||profile.role==='admin'){renderAdminOfficerDashboard();}
  $('myLeaves').innerHTML=mine.length?'<table><tr><th>Date</th><th>Leave Type</th><th>Day</th><th>Action</th></tr>'+mine.map(x=>'<tr><td><b>'+esc(x.leave_date)+'</b></td><td><span class="badge">'+(x.leave_type==='vacation'?'VACATION LEAVE':'WELLNESS LEAVE')+'</span></td><td>'+new Date(x.leave_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'})+'</td><td>'+(x.leave_type==='wellness'?'<button class="btn primary" data-download-relieving="'+x.leave_date+'" type="button">Download Relieving Document</button><span class="downloadStatus" style="margin-left:8px;font-size:12px"></span> ':'')+'<button class="btn danger" onclick="removeLeave('+x.id+')">Remove</button></td></tr>').join('')+'</table>':'<p class="muted">You have not plotted any leave yet.</p>';
  renderPortalDashboard();
  bindRelievingDownloadButtons();
 }
+function documentPrintWindow(title,bodyHtml){
+ const w=window.open('','_blank');
+ if(!w){setMsg('Please allow pop-ups to open the printable document.','err');return}
+ const safeName=esc(profile?.teacher_name||'Teacher');
+ w.document.write('<!doctype html><html><head><title>'+esc(title)+'</title><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;color:#1f2937;padding:34px;max-width:900px;margin:auto}h1{font-size:22px;margin:0;text-align:center}h2{font-size:17px;margin:4px 0 24px;text-align:center;font-weight:500}.meta{margin:16px 0 20px;padding:12px;background:#f3f6fa;border-radius:8px}.meta b{display:inline-block;min-width:120px}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #cfd8e3;padding:8px;font-size:12px;text-align:left}th{background:#edf3f9}.foot{margin-top:28px;font-size:11px;color:#64748b}@media print{button{display:none}}</style></head><body><h1>BINGAO NATIONAL HIGH SCHOOL</h1><h2>'+esc(title)+'</h2><div class="meta"><b>Name:</b> '+safeName+'<br><b>School Year:</b> 2026–2027<br><b>Generated:</b> '+new Date().toLocaleString()+'</div>'+bodyHtml+'<div class="foot">Generated from the BNHS School Portal 2.0.</div><script>setTimeout(()=>window.print(),300)<\/script></body></html>');
+ w.document.close();
+}
+function printMyLeaveSummary(){
+ const mine=leaves.filter(x=>x.user_id===user.id).sort((a,b)=>a.leave_date.localeCompare(b.leave_date));
+ const wellness=mine.filter(x=>x.leave_type==='wellness').length;
+ const vacation=mine.filter(x=>x.leave_type==='vacation').length;
+ let html='<p><b>Wellness Leave Used:</b> '+wellness+' of 5 &nbsp; | &nbsp; <b>Remaining:</b> '+Math.max(0,5-wellness)+' &nbsp; | &nbsp; <b>Vacation Leave Records:</b> '+vacation+'</p>';
+ html+=mine.length?'<table><tr><th>Date</th><th>Day</th><th>Leave Type</th></tr>'+mine.map(x=>'<tr><td>'+esc(x.leave_date)+'</td><td>'+new Date(x.leave_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'})+'</td><td>'+(x.leave_type==='vacation'?'Vacation Leave':'Wellness Leave')+'</td></tr>').join('')+'</table>':'<p>No leave records found.</p>';
+ documentPrintWindow('Individual Leave Summary',html);
+}
+function printMySchedule(){
+ const teacher=String(profile?.teacher_name||'').toUpperCase();
+ const rows=schedules.filter(x=>String(x.teacher_name||'').toUpperCase()===teacher&&x.active!==false);
+ const dayOrder={Monday:1,Tuesday:2,Wednesday:3,Thursday:4,Friday:5};
+ rows.sort((a,b)=>(dayOrder[a.day_of_week]||9)-(dayOrder[b.day_of_week]||9)||String(a.period).localeCompare(String(b.period)));
+ const html=rows.length?'<table><tr><th>Day</th><th>Period</th><th>Grade</th><th>Section</th><th>Subject</th></tr>'+rows.map(x=>'<tr><td>'+esc(x.day_of_week||'')+'</td><td>'+esc(x.period||'')+'</td><td>'+esc(x.grade_level||'')+'</td><td>'+esc(x.section||'')+'</td><td>'+esc(x.subject||'')+'</td></tr>').join('')+'</table>':'<p>No active teaching schedule found.</p>';
+ documentPrintWindow('Teaching Schedule',html);
+}
+function renderDocumentCenter(){
+ const box=$('documentRelievingList');if(!box)return;
+ const mine=leaves.filter(x=>x.user_id===user.id&&x.leave_type==='wellness').sort((a,b)=>a.leave_date.localeCompare(b.leave_date));
+ const teacher=String(profile?.teacher_name||'').toUpperCase();
+ const docs=mine.map(x=>{
+   const day=new Date(x.leave_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'});
+   const affected=schedules.filter(s=>String(s.teacher_name||'').toUpperCase()===teacher&&s.day_of_week===day&&s.active!==false);
+   const covered=affected.filter(s=>assignments.some(a=>a.leave_date===x.leave_date&&Number(a.schedule_id)===Number(s.id))).length;
+   const ready=affected.length>0&&covered===affected.length;
+   return {...x,affected:affected.length,covered,ready};
+ });
+ if($('documentRelievingCount'))$('documentRelievingCount').textContent=docs.filter(x=>x.ready).length+' available';
+ box.innerHTML=docs.length?'<table><tr><th>Leave Date</th><th>Coverage</th><th>Status</th><th>Document</th></tr>'+docs.map(x=>'<tr><td><b>'+esc(x.leave_date)+'</b><br><span class="muted">'+new Date(x.leave_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'})+'</span></td><td>'+x.covered+' of '+x.affected+' classes assigned</td><td><span class="badge">'+(x.ready?'READY':'INCOMPLETE')+'</span></td><td><button class="btn '+(x.ready?'primary':'secondary')+'" data-download-relieving="'+x.leave_date+'" type="button">Download .docx</button><span class="downloadStatus document-status"></span></td></tr>').join('')+'</table>':'<p class="muted">No Wellness Leave documents are available yet.</p>';
+ bindRelievingDownloadButtons();
+}
+
 function renderBlockedDatesAdmin(){
  const box=$('blockedDatesList');
  if(!box)return;
@@ -1677,6 +1758,15 @@ document.addEventListener('click',async function(e){
     b.disabled=false;
     b.textContent=old;
   }
+});
+
+/* documentCenterPrintHandler */
+document.addEventListener('click',function(e){
+ const b=e.target.closest('#printLeaveSummaryBtn,#printMyScheduleBtn');
+ if(!b)return;
+ e.preventDefault();
+ if(b.id==='printLeaveSummaryBtn')printMyLeaveSummary();
+ if(b.id==='printMyScheduleBtn')printMySchedule();
 });
 </script>
 <!-- deployment refresh 2026-10-05 -->
