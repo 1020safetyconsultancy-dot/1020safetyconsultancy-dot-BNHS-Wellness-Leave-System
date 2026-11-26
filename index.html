@@ -888,22 +888,42 @@ function memoFileIcon(type,name){
  if(type==='application/pdf'||String(name||'').toLowerCase().endsWith('.pdf'))return 'PDF';
  return 'IMG';
 }
+async function memoFileObjectUrl(path){
+ if(!path)return null;
+ try{
+   const {data:{session}}=await sb.auth.getSession();
+   if(!session?.access_token)return null;
+   const resp=await fetch(cfg.supabaseUrl+'/functions/v1/memo-file',{
+     method:'POST',
+     headers:{
+       'Authorization':'Bearer '+session.access_token,
+       'apikey':cfg.supabasePublishableKey,
+       'Content-Type':'application/json'
+     },
+     body:JSON.stringify({path})
+   });
+   if(!resp.ok)return null;
+   const blob=await resp.blob();
+   return URL.createObjectURL(blob);
+ }catch(e){return null}
+}
 async function memoAttachmentHtmlList(a,compact=false){
  let items=[];
  if(Array.isArray(a?.attachments)&&a.attachments.length)items=a.attachments;
  else if(a?.attachment_path)items=[{path:a.attachment_path,name:a.attachment_name,type:a.attachment_type}];
  if(!items.length)return '';
  const rendered=await Promise.all(items.map(async item=>{
-   const url=await memoSignedUrl(item.path);
-   if(!url)return '<div style="border:1px solid #fecaca;background:#fff7f7;border-radius:10px;padding:10px"><div style="font-size:11px;font-weight:800;color:#991b1b">'+esc(item.name||'Memo attachment')+'</div><div style="font-size:10px;color:#7f1d1d;margin-top:4px">Preview unavailable. Refresh the page or sign in again.</div></div>';
+   const url=await memoFileObjectUrl(item.path);
+   if(!url)return '<div style="border:1px solid #fecaca;background:#fff7f7;border-radius:10px;padding:10px"><div style="font-size:11px;font-weight:800;color:#991b1b">'+esc(item.name||'Memo attachment')+'</div><div style="font-size:10px;color:#7f1d1d;margin-top:4px">Attachment could not be loaded.</div></div>';
    if(item.type&&item.type.startsWith('image/')){
      const maxH=compact?'220px':'420px';
-     return '<div><a href="'+esc(url)+'" target="_blank" rel="noopener" style="display:block"><img src="'+esc(url)+'" alt="'+esc(item.name||'Memo image')+'" onerror="this.style.display=\'none\';this.parentElement.nextElementSibling.style.display=\'inline-flex\'" style="width:100%;height:'+maxH+';object-fit:contain;border:1px solid #dbe7f3;border-radius:10px;background:#fff"></a><a class="btn secondary" href="'+esc(url)+'" target="_blank" rel="noopener" style="display:none;margin-top:6px">Open Image • '+esc(item.name||'Memo image')+'</a></div>';
+     return '<div><a href="'+esc(url)+'" target="_blank" rel="noopener" style="display:block"><img src="'+esc(url)+'" alt="'+esc(item.name||'Memo image')+'" style="width:100%;height:'+maxH+';object-fit:contain;border:1px solid #dbe7f3;border-radius:10px;background:#fff"></a><a class="btn secondary" href="'+esc(url)+'" target="_blank" rel="noopener" style="margin-top:6px">Open Image • '+esc(item.name||'Memo image')+'</a></div>';
    }
    return '<a class="btn secondary" href="'+esc(url)+'" target="_blank" rel="noopener">PDF • '+esc(item.name||'Open memo PDF')+'</a>';
  }));
  return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax('+(compact?'140px':'180px')+',1fr));gap:10px;margin-top:12px">'+rendered.filter(Boolean).join('')+'</div>';
 }
+
 async function memoSignedUrl(path){
  if(!path)return null;
  try{
