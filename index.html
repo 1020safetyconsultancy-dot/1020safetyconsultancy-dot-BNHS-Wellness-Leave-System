@@ -515,6 +515,63 @@ body.portal-logged-in .top{position:sticky;top:0;z-index:45;box-shadow:0 4px 20p
       };
       return api;
     }
+    function storageBucket(bucket){
+      const encPath=p=>String(p||'').split('/').map(encodeURIComponent).join('/');
+      const baseHeaders=()=>({
+        'apikey':key,
+        'Authorization':'Bearer '+(session?.access_token||key)
+      });
+      return {
+        async upload(path,file,opt={}){
+          try{
+            const headers={...baseHeaders()};
+            headers['Content-Type']=opt.contentType||file?.type||'application/octet-stream';
+            headers['x-upsert']=opt.upsert?'true':'false';
+            const r=await fetch(url+'/storage/v1/object/'+encodeURIComponent(bucket)+'/'+encPath(path),{
+              method:'POST',
+              headers,
+              body:file
+            });
+            const txt=await r.text();
+            let data=null;try{data=txt?JSON.parse(txt):null}catch(e){data=txt}
+            if(!r.ok)return {data:null,error:{message:data?.message||data?.error||('Upload failed ('+r.status+')')}};
+            return {data,error:null};
+          }catch(e){return {data:null,error:{message:e?.message||'Upload failed'}}}
+        },
+        async createSignedUrl(path,expiresIn=3600){
+          try{
+            const r=await fetch(url+'/storage/v1/object/sign/'+encodeURIComponent(bucket)+'/'+encPath(path),{
+              method:'POST',
+              headers:{...baseHeaders(),'Content-Type':'application/json'},
+              body:JSON.stringify({expiresIn})
+            });
+            const txt=await r.text();
+            let data=null;try{data=txt?JSON.parse(txt):null}catch(e){data=txt}
+            if(!r.ok)return {data:null,error:{message:data?.message||data?.error||('Signed URL failed ('+r.status+')')}};
+            let signedUrl=data?.signedURL||data?.signedUrl||data?.signed_url||null;
+            if(signedUrl&&signedUrl.startsWith('/'))signedUrl=url+'/storage/v1'+signedUrl;
+            return {data:{...(data||{}),signedUrl,signedURL:signedUrl},error:null};
+          }catch(e){return {data:null,error:{message:e?.message||'Signed URL failed'}}}
+        },
+        async remove(paths){
+          try{
+            const prefixes=(Array.isArray(paths)?paths:[paths]).filter(Boolean);
+            const r=await fetch(url+'/storage/v1/object/'+encodeURIComponent(bucket),{
+              method:'DELETE',
+              headers:{...baseHeaders(),'Content-Type':'application/json'},
+              body:JSON.stringify({prefixes})
+            });
+            const txt=await r.text();
+            let data=null;try{data=txt?JSON.parse(txt):null}catch(e){data=txt}
+            if(!r.ok)return {data:null,error:{message:data?.message||data?.error||('Delete failed ('+r.status+')')}};
+            return {data,error:null};
+          }catch(e){return {data:null,error:{message:e?.message||'Delete failed'}}}
+        }
+      };
+    }
+    const storage={
+      from(bucket){return storageBucket(bucket)}
+    };
     const auth={
       async signInWithPassword({email,password}){
         const r=await fetch(url+'/auth/v1/token?grant_type=password',{
@@ -546,6 +603,7 @@ body.portal-logged-in .top{position:sticky;top:0;z-index:45;box-shadow:0 4px 20p
     };
     return {
       auth,
+      storage,
       from:table,
       async rpc(fn,args={}){
         return req('/rest/v1/rpc/'+fn,{method:'POST',body:JSON.stringify(args)});
