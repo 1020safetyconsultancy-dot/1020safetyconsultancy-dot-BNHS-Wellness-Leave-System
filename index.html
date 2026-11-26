@@ -219,8 +219,13 @@ body.portal-logged-in .top{position:sticky;top:0;z-index:45;box-shadow:0 4px 20p
     <div style="font-weight:900;margin-bottom:8px">Post Official Memo</div>
     <div class="plotbar">
       <div class="field" style="min-width:320px;flex:1">
-        <label>Memo / Announcement</label>
-        <textarea id="officialMemoText" rows="4" placeholder="Type the official memo or announcement here..." style="width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:10px;font-size:14px;resize:vertical"></textarea>
+        <label>Memo Messages</label>
+        <div id="officialMemoMessages">
+          <div class="official-memo-message-row" style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px">
+            <textarea class="officialMemoMessage" rows="3" placeholder="Message 1..." style="width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:10px;font-size:14px;resize:vertical"></textarea>
+          </div>
+        </div>
+        <button class="btn secondary" id="addOfficialMemoMessageBtn" type="button">+ Add Another Message</button>
       </div>
       <div class="field" style="min-width:260px">
         <label>Attach Image or PDF</label>
@@ -847,8 +852,22 @@ function renderPortalDashboard(){
  showPortalModule(portalModuleAllowed(saved)?saved:'dashboard',{keepScroll:true});
 }
 
+function addOfficialMemoMessage(){
+ const wrap=$('officialMemoMessages');if(!wrap)return;
+ const count=wrap.querySelectorAll('.officialMemoMessage').length+1;
+ const row=document.createElement('div');
+ row.className='official-memo-message-row';
+ row.style.cssText='display:flex;gap:8px;align-items:flex-start;margin-bottom:8px';
+ row.innerHTML='<textarea class="officialMemoMessage" rows="3" placeholder="Message '+count+'..." style="width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:10px;font-size:14px;resize:vertical"></textarea><button class="btn danger removeOfficialMemoMessageBtn" type="button">Remove</button>';
+ wrap.appendChild(row);
+}
 function canManageOfficialMemos(){
  return ['admin','principal','administrative_officer'].includes(profile?.role);
+}
+function formatOfficialMemoMessage(message){
+ const parts=String(message||'').split(/\n\n---\n\n/g).map(x=>x.trim()).filter(Boolean);
+ if(parts.length<=1)return '<div class="dashboard-memo-text">'+esc(message||'')+'</div>';
+ return '<div style="display:grid;gap:9px;margin-top:9px">'+parts.map((p,i)=>'<div style="border-left:4px solid #dbe7f3;padding:9px 11px;background:#f8fbff;border-radius:9px"><div style="font-size:10px;font-weight:900;color:#6b7d90;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px">Message '+(i+1)+'</div><div class="dashboard-memo-text" style="margin-top:0">'+esc(p)+'</div></div>').join('')+'</div>';
 }
 function memoFileIcon(type,name){
  if(type==='application/pdf'||String(name||'').toLowerCase().endsWith('.pdf'))return 'PDF';
@@ -864,9 +883,10 @@ async function memoSignedUrl(path){
 }
 async function postOfficialMemo(){
  if(!canManageOfficialMemos())return;
- const input=$('officialMemoText');
+ const messageBoxes=[...document.querySelectorAll('.officialMemoMessage')];
+ const messages=messageBoxes.map(x=>x.value.trim()).filter(Boolean);
+ const message=messages.join('\n\n---\n\n');
  const fileInput=$('officialMemoFile');
- const message=input?.value.trim()||'';
  const file=fileInput?.files?.[0]||null;
  if(!message&&!file){
    if($('officialMemoMsg'))$('officialMemoMsg').innerHTML='<div class="notice err">Enter a memo or attach an image/PDF.</div>';
@@ -909,7 +929,8 @@ async function postOfficialMemo(){
      if(attachment_path)await sb.storage.from('official-memos').remove([attachment_path]).catch(()=>{});
      throw error;
    }
-   if(input)input.value='';
+   const wrap=$('officialMemoMessages');
+   if(wrap)wrap.innerHTML='<div class="official-memo-message-row" style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px"><textarea class="officialMemoMessage" rows="3" placeholder="Message 1..." style="width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:10px;font-size:14px;resize:vertical"></textarea></div>';
    if(fileInput)fileInput.value='';
    if($('officialMemoMsg'))$('officialMemoMsg').innerHTML='<div class="notice ok">Official memo posted successfully.</div>';
    await refresh();
@@ -1975,6 +1996,15 @@ document.addEventListener('click',function(e){
 });
 
 $('officialMemoPostBtn')?.addEventListener('click',postOfficialMemo);
+
+$('addOfficialMemoMessageBtn')?.addEventListener('click',addOfficialMemoMessage);
+document.addEventListener('click',function(e){
+ const b=e.target.closest('.removeOfficialMemoMessageBtn');
+ if(!b)return;
+ e.preventDefault();
+ const row=b.closest('.official-memo-message-row');
+ if(row)row.remove();
+});
 </script>
 <!-- deployment refresh 2026-10-05 -->
 </body>
