@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
+<meta charset="utf-8"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>BNHS Wellness Leave Portal</title>
 <style>
@@ -641,6 +641,7 @@ body.portal-logged-in .top{position:sticky;top:0;z-index:45;box-shadow:0 4px 20p
 <noscript><div style="max-width:760px;margin:20px auto;padding:16px;background:#fff1f2;border:1px solid #fecdd3;border-radius:12px;color:#9f1239;font-family:Arial">JavaScript is required to open the BNHS Wellness Leave Portal.</div></noscript>
 <script src="online-config.js"></script>
 <script>
+const PORTAL_BUILD_ID='2026-11-26-2325';
 const cfg=window.BNHS_ONLINE_CONFIG||{};let sb=null,user=null,profile=null,profiles={},leaves=[],schedules=[],assignments=[],staff=[],activationStatus={},activationCodes={},slotOverrides={},announcements=[],principalSummary={},blockedDates={},pendingRelieverSelections={},cursor=new Date();cursor.setDate(1);
 const $=id=>document.getElementById(id),iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'),today=()=>iso(new Date());
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -987,6 +988,7 @@ async function postOfficialMemo(){
  const btn=$('officialMemoPostBtn');
  if(btn){btn.disabled=true;btn.textContent='Posting…'}
  let uploaded=[];
+ let memoSaved=false;
  try{
    if(files.length){
      const {data:{session}}=await sb.auth.getSession();
@@ -1006,6 +1008,7 @@ async function postOfficialMemo(){
      uploaded=Array.isArray(out.attachments)?out.attachments:[];
      if(uploaded.length!==files.length)throw new Error('Some memo attachments did not upload correctly.');
    }
+
    const first=uploaded[0]||null;
    const {error}=await sb.from('wellness_portal_announcements').insert({
      message:message||'Official memo attachment',
@@ -1018,13 +1021,29 @@ async function postOfficialMemo(){
      attachments:uploaded
    });
    if(error)throw error;
+   memoSaved=true;
+
    const wrap=$('officialMemoMessages');
    if(wrap)wrap.innerHTML='<div class="official-memo-message-row" style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px"><textarea class="officialMemoMessage" rows="3" placeholder="Message 1..." style="width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:10px;font-size:14px;resize:vertical"></textarea></div>';
    if(fileInput)fileInput.value='';
    if($('officialMemoFilePreview'))$('officialMemoFilePreview').innerHTML='';
    if($('officialMemoMsg'))$('officialMemoMsg').innerHTML='<div class="notice ok">Official memo posted'+(uploaded.length?' with '+uploaded.length+' attachment(s)':'')+'.</div>';
-   await refresh();
+
+   try{await refresh()}catch(renderError){
+     console.error('Memo saved; refresh/render error:',renderError);
+     if($('officialMemoMsg'))$('officialMemoMsg').innerHTML='<div class="notice ok">Memo posted successfully. Refresh the page to update the display.</div>';
+   }
  }catch(error){
+   // Only remove files if the memo itself was NOT saved.
+   if(!memoSaved&&uploaded.length){
+     try{
+       const {data:{session}}=await sb.auth.getSession();
+       if(session?.access_token){
+         // best-effort cleanup only for genuinely failed memo creation
+         await sb.storage.from('official-memos').remove(uploaded.map(x=>x.path));
+       }
+     }catch(e){}
+   }
    if($('officialMemoMsg'))$('officialMemoMsg').innerHTML='<div class="notice err">'+esc(error?.message||'The memo could not be posted.')+'</div>';
  }finally{
    if(btn){btn.disabled=false;btn.textContent='Post Memo'}
