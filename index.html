@@ -555,7 +555,21 @@ body.portal-logged-in .top{position:sticky;top:0;z-index:45;box-shadow:0 4px 20p
             let data=null;try{data=txt?JSON.parse(txt):null}catch(e){data=txt}
             if(!r.ok)return {data:null,error:{message:data?.message||data?.error||('Signed URL failed ('+r.status+')')}};
             let signedUrl=data?.signedURL||data?.signedUrl||data?.signed_url||null;
-            if(signedUrl&&signedUrl.startsWith('/'))signedUrl=url+'/storage/v1'+signedUrl;
+            if(signedUrl){
+              if(/^https?:\/\//i.test(signedUrl)){
+                // already absolute
+              }else if(signedUrl.startsWith('/storage/v1/')){
+                signedUrl=url+signedUrl;
+              }else if(signedUrl.startsWith('/object/')){
+                signedUrl=url+'/storage/v1'+signedUrl;
+              }else if(signedUrl.startsWith('object/')){
+                signedUrl=url+'/storage/v1/'+signedUrl;
+              }else if(signedUrl.startsWith('/')){
+                signedUrl=url+'/storage/v1'+signedUrl;
+              }else{
+                signedUrl=url+'/storage/v1/'+signedUrl;
+              }
+            }
             return {data:{...(data||{}),signedUrl,signedURL:signedUrl},error:null};
           }catch(e){return {data:null,error:{message:e?.message||'Signed URL failed'}}}
         },
@@ -881,10 +895,10 @@ async function memoAttachmentHtmlList(a,compact=false){
  if(!items.length)return '';
  const rendered=await Promise.all(items.map(async item=>{
    const url=await memoSignedUrl(item.path);
-   if(!url)return '';
+   if(!url)return '<div style="border:1px solid #fecaca;background:#fff7f7;border-radius:10px;padding:10px"><div style="font-size:11px;font-weight:800;color:#991b1b">'+esc(item.name||'Memo attachment')+'</div><div style="font-size:10px;color:#7f1d1d;margin-top:4px">Preview unavailable. Refresh the page or sign in again.</div></div>';
    if(item.type&&item.type.startsWith('image/')){
      const maxH=compact?'220px':'420px';
-     return '<a href="'+esc(url)+'" target="_blank" rel="noopener" style="display:block"><img src="'+esc(url)+'" alt="'+esc(item.name||'Memo image')+'" style="width:100%;height:'+maxH+';object-fit:contain;border:1px solid #dbe7f3;border-radius:10px;background:#fff"></a>';
+     return '<div><a href="'+esc(url)+'" target="_blank" rel="noopener" style="display:block"><img src="'+esc(url)+'" alt="'+esc(item.name||'Memo image')+'" onerror="this.style.display=\'none\';this.parentElement.nextElementSibling.style.display=\'inline-flex\'" style="width:100%;height:'+maxH+';object-fit:contain;border:1px solid #dbe7f3;border-radius:10px;background:#fff"></a><a class="btn secondary" href="'+esc(url)+'" target="_blank" rel="noopener" style="display:none;margin-top:6px">Open Image • '+esc(item.name||'Memo image')+'</a></div>';
    }
    return '<a class="btn secondary" href="'+esc(url)+'" target="_blank" rel="noopener">PDF • '+esc(item.name||'Open memo PDF')+'</a>';
  }));
@@ -894,10 +908,36 @@ async function memoSignedUrl(path){
  if(!path)return null;
  try{
    const {data,error}=await sb.storage.from('official-memos').createSignedUrl(path,3600);
-   if(error)return null;
-   return data?.signedUrl||data?.signedURL||null;
+   const candidate=data?.signedUrl||data?.signedURL||null;
+   if(!error&&candidate)return candidate;
+ }catch(e){}
+ // Robust fallback: request the signed URL directly with the logged-in user's token.
+ try{
+   const {data:{session}}=await sb.auth.getSession();
+   if(!session?.access_token)return null;
+   const encPath=String(path).split('/').map(encodeURIComponent).join('/');
+   const resp=await fetch(cfg.supabaseUrl+'/storage/v1/object/sign/official-memos/'+encPath,{
+     method:'POST',
+     headers:{
+       'apikey':cfg.supabasePublishableKey,
+       'Authorization':'Bearer '+session.access_token,
+       'Content-Type':'application/json'
+     },
+     body:JSON.stringify({expiresIn:3600})
+   });
+   if(!resp.ok)return null;
+   const data=await resp.json();
+   let signed=data?.signedURL||data?.signedUrl||data?.signed_url||null;
+   if(!signed)return null;
+   if(/^https?:\/\//i.test(signed))return signed;
+   if(signed.startsWith('/storage/v1/'))return cfg.supabaseUrl+signed;
+   if(signed.startsWith('/object/'))return cfg.supabaseUrl+'/storage/v1'+signed;
+   if(signed.startsWith('object/'))return cfg.supabaseUrl+'/storage/v1/'+signed;
+   if(signed.startsWith('/'))return cfg.supabaseUrl+'/storage/v1'+signed;
+   return cfg.supabaseUrl+'/storage/v1/'+signed;
  }catch(e){return null}
 }
+
 async function postOfficialMemo(){
  if(!canManageOfficialMemos())return;
  const messageBoxes=[...document.querySelectorAll('.officialMemoMessage')];
