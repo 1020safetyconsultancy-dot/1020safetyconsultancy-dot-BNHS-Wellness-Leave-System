@@ -229,8 +229,9 @@ body.portal-logged-in .top{position:sticky;top:0;z-index:45;box-shadow:0 4px 20p
       </div>
       <div class="field" style="min-width:260px">
         <label>Attach Image or PDF</label>
-        <input id="officialMemoFile" type="file" accept=".pdf,image/jpeg,image/png,image/webp">
-        <div class="muted" style="margin-top:4px">PDF, JPG, PNG, or WEBP • maximum 10 MB</div>
+        <input id="officialMemoFile" type="file" accept=".pdf,image/jpeg,image/png,image/webp" multiple>
+        <div class="muted" style="margin-top:4px">Select multiple PDF/JPG/PNG/WEBP files • up to 10 files • 10 MB each</div>
+        <div id="officialMemoFilePreview" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:8px"></div>
       </div>
       <button class="btn primary" id="officialMemoPostBtn" type="button">Post Memo</button>
     </div>
@@ -739,7 +740,7 @@ async function refresh(){
   sb.from('wellness_portal_staff').select('id,staff_name,staff_type,active,created_at').order('staff_name'),
   sb.rpc('admin_get_staff_activation_status'),
   sb.from('wellness_portal_slot_overrides').select('slot_date,total_slots,updated_at'),
-  sb.from('wellness_portal_announcements').select('id,message,posted_by_name,active,created_at,attachment_path,attachment_name,attachment_type').order('created_at',{ascending:false}),
+  sb.from('wellness_portal_announcements').select('id,message,posted_by_name,active,created_at,attachment_path,attachment_name,attachment_type,attachments').order('created_at',{ascending:false}),
   (profile.role==='principal'||profile.role==='admin')?sb.rpc('principal_dashboard_summary'):Promise.resolve({data:{},error:null}),
   sb.from('wellness_portal_blocked_dates').select('blocked_date,reason')
  ]);
@@ -873,6 +874,22 @@ function memoFileIcon(type,name){
  if(type==='application/pdf'||String(name||'').toLowerCase().endsWith('.pdf'))return 'PDF';
  return 'IMG';
 }
+async function memoAttachmentHtmlList(a,compact=false){
+ let items=[];
+ if(Array.isArray(a?.attachments)&&a.attachments.length)items=a.attachments;
+ else if(a?.attachment_path)items=[{path:a.attachment_path,name:a.attachment_name,type:a.attachment_type}];
+ if(!items.length)return '';
+ const rendered=await Promise.all(items.map(async item=>{
+   const url=await memoSignedUrl(item.path);
+   if(!url)return '';
+   if(item.type&&item.type.startsWith('image/')){
+     const maxH=compact?'220px':'420px';
+     return '<a href="'+esc(url)+'" target="_blank" rel="noopener" style="display:block"><img src="'+esc(url)+'" alt="'+esc(item.name||'Memo image')+'" style="width:100%;height:'+maxH+';object-fit:contain;border:1px solid #dbe7f3;border-radius:10px;background:#fff"></a>';
+   }
+   return '<a class="btn secondary" href="'+esc(url)+'" target="_blank" rel="noopener">PDF • '+esc(item.name||'Open memo PDF')+'</a>';
+ }));
+ return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax('+(compact?'140px':'180px')+',1fr));gap:10px;margin-top:12px">'+rendered.filter(Boolean).join('')+'</div>';
+}
 async function memoSignedUrl(path){
  if(!path)return null;
  try{
@@ -887,54 +904,62 @@ async function postOfficialMemo(){
  const messages=messageBoxes.map(x=>x.value.trim()).filter(Boolean);
  const message=messages.join('\n\n---\n\n');
  const fileInput=$('officialMemoFile');
- const file=fileInput?.files?.[0]||null;
- if(!message&&!file){
-   if($('officialMemoMsg'))$('officialMemoMsg').innerHTML='<div class="notice err">Enter a memo or attach an image/PDF.</div>';
+ const files=[...(fileInput?.files||[])];
+ if(!message&&!files.length){
+   if($('officialMemoMsg'))$('officialMemoMsg').innerHTML='<div class="notice err">Enter a memo or attach image/PDF files.</div>';
    return;
  }
- if(file){
-   const allowed=['application/pdf','image/jpeg','image/png','image/webp'];
+ if(files.length>10){
+   if($('officialMemoMsg'))$('officialMemoMsg').innerHTML='<div class="notice err">You can upload up to 10 files in one memo.</div>';
+   return;
+ }
+ const allowed=['application/pdf','image/jpeg','image/png','image/webp'];
+ for(const file of files){
    if(!allowed.includes(file.type)){
      if($('officialMemoMsg'))$('officialMemoMsg').innerHTML='<div class="notice err">Only PDF, JPG, PNG, or WEBP files are allowed.</div>';
      return;
    }
    if(file.size>10*1024*1024){
-     if($('officialMemoMsg'))$('officialMemoMsg').innerHTML='<div class="notice err">The attachment must be 10 MB or smaller.</div>';
+     if($('officialMemoMsg'))$('officialMemoMsg').innerHTML='<div class="notice err">'+esc(file.name)+' is larger than 10 MB.</div>';
      return;
    }
  }
  const btn=$('officialMemoPostBtn');
  if(btn){btn.disabled=true;btn.textContent='Posting…'}
- let attachment_path=null,attachment_name=null,attachment_type=null;
+ const uploaded=[];
  try{
-   if(file){
+   for(let i=0;i<files.length;i++){
+     const file=files[i];
      const ext=(file.name.split('.').pop()||'file').toLowerCase().replace(/[^a-z0-9]/g,'');
-     const safeBase=(file.name.replace(/\.[^.]+$/,'').replace(/[^a-zA-Z0-9_-]+/g,'_').slice(0,60)||'memo');
-     attachment_path=user.id+'/'+Date.now()+'_'+safeBase+'.'+ext;
-     const up=await sb.storage.from('official-memos').upload(attachment_path,file,{contentType:file.type,upsert:false});
+     const safeBase=(file.name.replace(/\.[^.]+$/,'').replace(/[^a-zA-Z0-9_-]+/g,'_').slice(0,50)||'memo');
+     const path=user.id+'/'+Date.now()+'_'+i+'_'+safeBase+'.'+ext;
+     const up=await sb.storage.from('official-memos').upload(path,file,{contentType:file.type,upsert:false});
      if(up.error)throw up.error;
-     attachment_name=file.name;
-     attachment_type=file.type;
+     uploaded.push({path,name:file.name,type:file.type});
    }
+   const first=uploaded[0]||null;
    const {error}=await sb.from('wellness_portal_announcements').insert({
      message:message||'Official memo attachment',
      posted_by:user.id,
      posted_by_name:profile.teacher_name,
      active:true,
-     attachment_path,
-     attachment_name,
-     attachment_type
+     attachment_path:first?.path||null,
+     attachment_name:first?.name||null,
+     attachment_type:first?.type||null,
+     attachments:uploaded
    });
    if(error){
-     if(attachment_path)await sb.storage.from('official-memos').remove([attachment_path]).catch(()=>{});
+     if(uploaded.length)await sb.storage.from('official-memos').remove(uploaded.map(x=>x.path)).catch(()=>{});
      throw error;
    }
    const wrap=$('officialMemoMessages');
    if(wrap)wrap.innerHTML='<div class="official-memo-message-row" style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px"><textarea class="officialMemoMessage" rows="3" placeholder="Message 1..." style="width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:10px;font-size:14px;resize:vertical"></textarea></div>';
    if(fileInput)fileInput.value='';
-   if($('officialMemoMsg'))$('officialMemoMsg').innerHTML='<div class="notice ok">Official memo posted successfully.</div>';
+   if($('officialMemoFilePreview'))$('officialMemoFilePreview').innerHTML='';
+   if($('officialMemoMsg'))$('officialMemoMsg').innerHTML='<div class="notice ok">Official memo posted with '+uploaded.length+' attachment(s).</div>';
    await refresh();
  }catch(error){
+   if(uploaded.length)await sb.storage.from('official-memos').remove(uploaded.map(x=>x.path)).catch(()=>{});
    if($('officialMemoMsg'))$('officialMemoMsg').innerHTML='<div class="notice err">'+esc(error?.message||'The memo could not be posted.')+'</div>';
  }finally{
    if(btn){btn.disabled=false;btn.textContent='Post Memo'}
@@ -949,9 +974,8 @@ async function removeOfficialMemo(id){
    if($('officialMemoMsg'))$('officialMemoMsg').innerHTML='<div class="notice err">'+esc(error.message)+'</div>';
    return;
  }
- if(memo?.attachment_path){
-   try{await sb.storage.from('official-memos').remove([memo.attachment_path])}catch(e){}
- }
+ const paths=Array.isArray(memo?.attachments)&&memo.attachments.length?memo.attachments.map(x=>x.path).filter(Boolean):(memo?.attachment_path?[memo.attachment_path]:[]);
+ if(paths.length){try{await sb.storage.from('official-memos').remove(paths)}catch(e){}}
  await refresh();
 }
 window.removeOfficialMemo=removeOfficialMemo;
@@ -960,22 +984,13 @@ async function renderDashboardMemos(){
  const box=$('dashboardMemos');if(!box)return;
  const rows=(announcements||[]).filter(x=>x.active!==false).slice(0,5);
  if(!rows.length){box.innerHTML='<div class="notice">No official memo has been posted yet.</div>';return}
- const urls={};
- await Promise.all(rows.filter(a=>a.attachment_path).map(async a=>{urls[a.id]=await memoSignedUrl(a.attachment_path)}));
- box.innerHTML=rows.map((x,i)=>{
+ const html=await Promise.all(rows.map(async(x,i)=>{
    const dt=x.created_at?new Date(x.created_at).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}):'';
    const who=x.posted_by_name||'School Administration';
-   const url=urls[x.id];
-   let attachment='';
-   if(url){
-     if(x.attachment_type&&x.attachment_type.startsWith('image/')){
-       attachment='<div style="margin-top:10px"><a href="'+esc(url)+'" target="_blank" rel="noopener"><img src="'+esc(url)+'" alt="'+esc(x.attachment_name||'Memo attachment')+'" style="width:100%;max-height:300px;object-fit:contain;border-radius:10px;border:1px solid #dbe7f3;background:#fff"></a></div>';
-     }else{
-       attachment='<div style="margin-top:10px"><a class="btn secondary" href="'+esc(url)+'" target="_blank" rel="noopener">PDF • '+esc(x.attachment_name||'Open memo')+'</a></div>';
-     }
-   }
-   return '<div class="dashboard-memo-item"><div class="dashboard-memo-top"><div><div class="dashboard-memo-title">Official Memo / Announcement</div><div class="dashboard-memo-meta">Posted by '+esc(who)+(dt?' • '+esc(dt):'')+'</div></div>'+(i===0?'<span class="dashboard-memo-pin">LATEST</span>':'')+'</div><div class="dashboard-memo-text">'+esc(x.message||'')+'</div>'+attachment+'</div>';
- }).join('');
+   const attachment=await memoAttachmentHtmlList(x,true);
+   return '<div class="dashboard-memo-item"><div class="dashboard-memo-top"><div><div class="dashboard-memo-title">Official Memo / Announcement</div><div class="dashboard-memo-meta">Posted by '+esc(who)+(dt?' • '+esc(dt):'')+'</div></div>'+(i===0?'<span class="dashboard-memo-pin">LATEST</span>':'')+'</div>'+formatOfficialMemoMessage(x.message||'')+attachment+'</div>';
+ }));
+ box.innerHTML=html.join('');
 }
 
 function render(){
@@ -1580,22 +1595,13 @@ async function renderSchoolAnnouncements(){
  if(composer)composer.style.display=canManageOfficialMemos()?'block':'none';
  const active=(announcements||[]).filter(a=>a.active!==false);
  if(!active.length){box.innerHTML='<div class="notice">No official memo has been posted yet.</div>';return}
- const urls={};
- await Promise.all(active.filter(a=>a.attachment_path).map(async a=>{urls[a.id]=await memoSignedUrl(a.attachment_path)}));
- box.innerHTML='<div class="dashboard-memo-list">'+active.map(a=>{
+ const html=await Promise.all(active.map(async a=>{
    const dt=a.created_at?new Date(a.created_at).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}):'';
    const remove=canManageOfficialMemos()?'<button class="btn danger" type="button" onclick="removeOfficialMemo('+a.id+')">Remove</button>':'';
-   const url=urls[a.id];
-   let attachment='';
-   if(url){
-     if(a.attachment_type&&a.attachment_type.startsWith('image/')){
-       attachment='<div style="margin-top:12px"><a href="'+esc(url)+'" target="_blank" rel="noopener"><img src="'+esc(url)+'" alt="'+esc(a.attachment_name||'Memo attachment')+'" style="max-width:100%;max-height:520px;border-radius:12px;border:1px solid #dbe7f3"></a><div style="margin-top:7px"><a class="btn secondary" href="'+esc(url)+'" target="_blank" rel="noopener">Open Image</a></div></div>';
-     }else{
-       attachment='<div style="margin-top:12px"><a class="btn secondary" href="'+esc(url)+'" target="_blank" rel="noopener">'+memoFileIcon(a.attachment_type,a.attachment_name)+' • '+esc(a.attachment_name||'Open attached PDF')+'</a></div>';
-     }
-   }
-   return '<div class="dashboard-memo-item"><div class="dashboard-memo-top"><div><div class="dashboard-memo-title">Official Memo / Announcement</div><div class="dashboard-memo-meta">Posted by '+esc(a.posted_by_name||'School Administration')+(dt?' • '+esc(dt):'')+'</div></div>'+remove+'</div><div class="dashboard-memo-text">'+esc(a.message||'')+'</div>'+attachment+'</div>';
- }).join('')+'</div>';
+   const attachment=await memoAttachmentHtmlList(a,false);
+   return '<div class="dashboard-memo-item"><div class="dashboard-memo-top"><div><div class="dashboard-memo-title">Official Memo / Announcement</div><div class="dashboard-memo-meta">Posted by '+esc(a.posted_by_name||'School Administration')+(dt?' • '+esc(dt):'')+'</div></div>'+remove+'</div>'+formatOfficialMemoMessage(a.message||'')+attachment+'</div>';
+ }));
+ box.innerHTML='<div class="dashboard-memo-list">'+html.join('')+'</div>';
 }
 
 function buildTeacherLeaveBalanceTable(){
@@ -2004,6 +2010,21 @@ document.addEventListener('click',function(e){
  e.preventDefault();
  const row=b.closest('.official-memo-message-row');
  if(row)row.remove();
+});
+
+/* officialMemoFilePreviewHandler */
+$('officialMemoFile')?.addEventListener('change',function(){
+ const preview=$('officialMemoFilePreview');if(!preview)return;
+ const files=[...(this.files||[])];
+ preview.innerHTML=files.map((file,i)=>{
+   const label='<div style="font-size:11px;font-weight:800;margin-top:5px;word-break:break-word">'+esc(file.name)+'</div>';
+   if(file.type.startsWith('image/')){
+     const url=URL.createObjectURL(file);
+     setTimeout(()=>URL.revokeObjectURL(url),60000);
+     return '<div style="border:1px solid #dbe7f3;border-radius:10px;padding:6px;background:#fff"><img src="'+url+'" style="width:100%;height:100px;object-fit:cover;border-radius:7px">'+label+'</div>';
+   }
+   return '<div style="border:1px solid #dbe7f3;border-radius:10px;padding:10px;background:#fff"><div style="font-weight:900;color:#b42318">PDF</div>'+label+'</div>';
+ }).join('');
 });
 </script>
 <!-- deployment refresh 2026-10-05 -->
