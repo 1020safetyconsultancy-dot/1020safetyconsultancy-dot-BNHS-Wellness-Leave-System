@@ -1707,11 +1707,11 @@ function renderPrincipalDashboard(){
 
  const todayStr=today();
  const todayLeaves=leaves.filter(l=>l.leave_date===todayStr);
- $('principalTotalStaff').textContent=principalSummary.total_staff??staff.filter(x=>x.active).length;
- $('principalOnLeave').textContent=principalSummary.on_leave_today??todayLeaves.length;
- $('principalWellnessToday').textContent=principalSummary.wellness_today??todayLeaves.filter(l=>l.leave_type==='wellness').length;
- $('principalVacationToday').textContent=todayLeaves.filter(l=>l.leave_type==='vacation').length;
- $('principalUncovered').textContent=principalSummary.uncovered_classes??0;
+ if($('principalTotalStaff'))$('principalTotalStaff').textContent=principalSummary.total_staff??staff.filter(x=>x.active).length;
+ if($('principalOnLeave'))$('principalOnLeave').textContent=principalSummary.on_leave_today??todayLeaves.length;
+ if($('principalWellnessToday'))$('principalWellnessToday').textContent=principalSummary.wellness_today??todayLeaves.filter(l=>l.leave_type==='wellness').length;
+ if($('principalVacationToday'))$('principalVacationToday').textContent=todayLeaves.filter(l=>l.leave_type==='vacation').length;
+ if($('principalUncovered'))$('principalUncovered').textContent=principalSummary.uncovered_classes??0;
  const upcoming=leaves.filter(l=>l.leave_date>=todayStr).sort((a,b)=>a.leave_date.localeCompare(b.leave_date));
 
  $('principalLeaveBalance').innerHTML=buildTeacherLeaveBalanceTable();
@@ -1838,10 +1838,10 @@ function renderAdminOfficerDashboard(){
      if(!assignments.some(a=>a.leave_date===t&&a.schedule_id===s.id))uncovered++;
    });
  });
- $('aoActiveStaff').textContent=activeStaff.length;
- $('aoOnLeaveToday').textContent=todayLeaves.length;
- $('aoReliefAssignments').textContent=assignments.length;
- $('aoUncoveredToday').textContent=uncovered;
+ if($('aoActiveStaff'))$('aoActiveStaff').textContent=activeStaff.length;
+ if($('aoOnLeaveToday'))$('aoOnLeaveToday').textContent=todayLeaves.length;
+ if($('aoReliefAssignments'))$('aoReliefAssignments').textContent=assignments.length;
+ if($('aoUncoveredToday'))$('aoUncoveredToday').textContent=uncovered;
 
  $('aoAlerts').innerHTML=uncovered
    ? '<div class="notice err"><b>Coverage alert:</b> '+uncovered+' class(es) today still have no reliever assigned.</div>'
