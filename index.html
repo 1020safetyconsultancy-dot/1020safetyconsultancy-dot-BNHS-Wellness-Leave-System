@@ -654,8 +654,8 @@ body.portal-logged-in .top{position:sticky;top:0;z-index:45;box-shadow:0 4px 20p
 <noscript><div style="max-width:760px;margin:20px auto;padding:16px;background:#fff1f2;border:1px solid #fecdd3;border-radius:12px;color:#9f1239;font-family:Arial">JavaScript is required to open the BNHS Wellness Leave Portal.</div></noscript>
 <script src="online-config.js"></script>
 <script>
-const PORTAL_BUILD_ID='2026-11-26-2355';
-const cfg=window.BNHS_ONLINE_CONFIG||{};let sb=null,user=null,profile=null,profiles={},leaves=[],schedules=[],assignments=[],staff=[],activationStatus={},activationCodes={},slotOverrides={},announcements=[],principalSummary={},blockedDates={},pendingRelieverSelections={},cursor=new Date();cursor.setDate(1);
+const PORTAL_BUILD_ID='2026-11-27-0005';
+const cfg=window.BNHS_ONLINE_CONFIG||{};let sb=null,user=null,profile=null,enteringUserId=null,profiles={},leaves=[],schedules=[],assignments=[],staff=[],activationStatus={},activationCodes={},slotOverrides={},announcements=[],principalSummary={},blockedDates={},pendingRelieverSelections={},cursor=new Date();cursor.setDate(1);
 const $=id=>document.getElementById(id),iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'),today=()=>iso(new Date());
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function setupCollapsibleAdminSections(){
@@ -704,11 +704,32 @@ function configured(){return cfg.supabaseUrl&&cfg.supabasePublishableKey&&!cfg.s
 function weekend(date){const d=new Date(date+'T12:00:00').getDay();return d===0||d===6}
 function setMsg(t,kind=''){ $('msg').innerHTML=t?'<div class="notice '+kind+'">'+t+'</div>':'' }
 async function start(){
- if(!configured()){$('loginCard').style.display='none';$('setupCard').style.display='block';return}
+ if(!configured()){
+   if($('loginCard'))$('loginCard').style.display='none';
+   if($('setupCard'))$('setupCard').style.display='block';
+   return;
+ }
  await loadSupabaseLib();
- sb=window.supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
- const {data:{session}}=await sb.auth.getSession();if(session)await enter(session.user);else $('loginCard').style.display='block';
- sb.auth.onAuthStateChange(async(e,s)=>{if(e==='SIGNED_OUT')location.reload();else if(s?.user&&(!user||user.id!==s.user.id))await enter(s.user)})
+ sb=window.supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey,{
+   auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}
+ });
+ const {data:{session}}=await sb.auth.getSession();
+ if(session?.user)await enter(session.user);
+ else if($('loginCard'))$('loginCard').style.display='block';
+
+ // Never reload the whole page from an auth event.
+ sb.auth.onAuthStateChange(async(event,s)=>{
+   console.log('Auth event:',event);
+   if(event==='SIGNED_OUT'){
+     user=null;profile=null;enteringUserId=null;
+     if($('app'))$('app').style.display='none';
+     if($('loginCard'))$('loginCard').style.display='block';
+     return;
+   }
+   if(s?.user && user?.id!==s.user.id && enteringUserId!==s.user.id){
+     await enter(s.user);
+   }
+ });
 }
 $('loginForm').addEventListener('submit',async e=>{
  e.preventDefault();
@@ -752,6 +773,10 @@ $('signupForm').addEventListener('submit',async e=>{
  }
 });
 async function enter(u){
+ if(!u?.id)return;
+ if(enteringUserId===u.id)return;
+ if(user?.id===u.id && profile?.user_id===u.id && $('app')?.style.display!=='none')return;
+ enteringUserId=u.id;
  user=u;
  const {data:p,error}=await sb.from('wellness_portal_profiles').select('user_id,teacher_name,role,active').eq('user_id',u.id).single();
  if(error||!p||!p.active){
@@ -759,6 +784,7 @@ async function enter(u){
    await sb.auth.signOut();
    if($('loginCard'))$('loginCard').style.display='block';
    if($('loginMsg'))$('loginMsg').innerHTML='<div class="notice err">'+(error?'Login succeeded, but the teacher profile could not be loaded. Please refresh and try again.':'Your account is not linked to an active BNHS teacher profile. Please contact the administrator.')+'</div>';
+   enteringUserId=null;
    return;
  }
  profile=p;
@@ -788,6 +814,7 @@ async function enter(u){
    if($('msg'))$('msg').innerHTML='<div class="notice err"><b>You are signed in.</b> Some dashboard content could not load. Use the menu or refresh the page.</div>';
  }
  try{subscribe()}catch(e){console.error('Realtime subscribe error',e)}
+ enteringUserId=null;
 }
 
 async function refresh(){
@@ -2055,7 +2082,7 @@ $('logoutBtn').onclick=async()=>{
   user=null;profile=null;
   $('app').style.display='none';
   $('loginCard').style.display='block';
-  $('loginPass').value='';
+  if($('password'))$('password').value='';
   $('loginMsg').innerHTML='<div class="notice ok">You have been signed out.</div>';
   if(btn){btn.disabled=false;btn.textContent='Sign Out'}
 };
