@@ -29,10 +29,74 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 .admin-collapsible.collapsed .collapsible-body{display:none}
 .admin-collapsible.collapsed{padding-bottom:14px}
 .admin-collapsible.collapsed .admin-collapse-toggle::after{content:""}
+
+/* ===== BNHS SCHOOL PORTAL 2.0 — Canva-inspired presentation layer ===== */
+:root{
+  --portal-navy:#123a63;--portal-blue:#1e6fd9;--portal-sky:#eaf4ff;
+  --portal-gold:#f2b84b;--portal-ink:#17324d;--portal-soft:#f5f8fc;
+  --portal-card:#ffffff;--portal-line:#dbe7f3;--portal-green:#17865b;
+}
+html{scroll-behavior:smooth}
+#app{position:relative}
+#app .card{border:1px solid rgba(18,58,99,.08);box-shadow:0 10px 30px rgba(31,72,112,.07);border-radius:18px}
+.portal-sidebar{
+  position:fixed;left:18px;top:92px;width:232px;max-height:calc(100vh - 112px);overflow:auto;
+  z-index:40;background:linear-gradient(180deg,#123a63 0%,#18578f 100%);color:#fff;
+  border-radius:22px;padding:16px 12px;box-shadow:0 18px 42px rgba(12,46,78,.22)
+}
+.portal-brand{padding:8px 10px 14px;border-bottom:1px solid rgba(255,255,255,.16);margin-bottom:10px}
+.portal-brand b{display:block;font-size:15px;letter-spacing:.2px}.portal-brand span{font-size:11px;opacity:.78}
+.portal-nav-title{font-size:10px;text-transform:uppercase;letter-spacing:1.1px;opacity:.6;padding:10px 10px 6px}
+.portal-nav-btn{
+  width:100%;border:0;background:transparent;color:#eef7ff;text-align:left;padding:10px 11px;
+  border-radius:12px;font-weight:700;font-size:13px;cursor:pointer;margin:2px 0;display:flex;gap:9px;align-items:center
+}
+.portal-nav-btn:hover,.portal-nav-btn.active{background:rgba(255,255,255,.14)}
+.portal-nav-icon{width:22px;height:22px;border-radius:7px;background:rgba(255,255,255,.13);display:inline-grid;place-items:center;font-size:12px}
+.portal-main-offset{margin-left:250px}
+.portal-hero{
+  background:
+    radial-gradient(circle at 85% 18%,rgba(255,255,255,.18),transparent 28%),
+    linear-gradient(120deg,#123a63 0%,#1e6fd9 62%,#4b94e7 100%);
+  color:white;border-radius:24px;padding:26px;box-shadow:0 18px 40px rgba(26,83,137,.2);margin-bottom:18px;overflow:hidden
+}
+.portal-hero-top{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.portal-kicker{font-size:12px;letter-spacing:1.4px;text-transform:uppercase;font-weight:800;opacity:.78}
+.portal-hero h2{font-size:29px;margin:5px 0 5px;line-height:1.1}.portal-hero p{margin:0;opacity:.88}
+.portal-year-wrap{background:rgba(255,255,255,.13);padding:10px 12px;border:1px solid rgba(255,255,255,.18);border-radius:14px}
+.portal-year-wrap label{font-size:10px;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px;opacity:.8}
+.portal-year-wrap select{border:0;border-radius:9px;padding:8px 10px;font-weight:800;color:#17324d}
+.portal-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:20px}
+.portal-metric{background:rgba(255,255,255,.96);color:var(--portal-ink);border-radius:16px;padding:14px 15px;min-height:80px}
+.portal-metric .label{font-size:11px;text-transform:uppercase;letter-spacing:.65px;color:#6b7d90;font-weight:800}
+.portal-metric .value{font-size:24px;font-weight:900;margin-top:5px;color:#123a63}.portal-metric .sub{font-size:11px;color:#708399;margin-top:2px}
+.portal-quick{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}
+.portal-quick button{border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:white;border-radius:11px;padding:9px 12px;font-weight:800;cursor:pointer}
+.portal-quick button:hover{background:rgba(255,255,255,.2)}
+.portal-section-label{display:flex;align-items:center;gap:8px;margin:20px 0 10px;color:#314b67;font-weight:900;font-size:12px;text-transform:uppercase;letter-spacing:1px}
+.portal-section-label:after{content:"";height:1px;background:#dce7f1;flex:1}
+.portal-mobile-nav{display:none}
+#schoolAnnouncementsCard{border-left:5px solid var(--portal-gold)!important}
+#portalProfileCard{border-left:5px solid var(--portal-blue)!important}
+#leaveManagementCard{border-left:5px solid var(--portal-green)!important}
+#schoolCalendarCard{border-left:5px solid #7d5ce7!important}
+#relieverManagementCard{border-left:5px solid #e87833!important}
+.portal-profile-strip{background:linear-gradient(135deg,#fff,#f5f9ff)}
+body.portal-logged-in{background:linear-gradient(180deg,#edf5fd 0,#f8fbff 340px,#f5f7fb 100%)}
+body.portal-logged-in .top{position:sticky;top:0;z-index:45;box-shadow:0 4px 20px rgba(10,45,80,.08)}
+@media(max-width:1050px){
+ .portal-sidebar{display:none}.portal-main-offset{margin-left:0}.portal-mobile-nav{display:flex;gap:8px;overflow:auto;margin-bottom:12px;padding-bottom:3px}
+ .portal-mobile-nav button{white-space:nowrap;border:1px solid #d6e4f2;background:#fff;border-radius:11px;padding:9px 11px;font-weight:800;color:#274765}
+}
+@media(max-width:760px){
+ .portal-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.portal-hero{padding:20px}.portal-hero h2{font-size:23px}
+}
+@media(max-width:480px){.portal-metrics{grid-template-columns:1fr 1fr}.portal-metric .value{font-size:20px}}
+
 </style>
 </head>
 <body>
-<header class="top"><div class="topin"><img class="seal" src="data:image/jpeg;base64,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" alt="Batac National High School seal"><div><h1>BINGAO NATIONAL HIGH SCHOOL</h1><p>Online Wellness Leave Portal • School Year 2026–2027</p></div></div></header>
+<header class="top"><div class="topin"><img class="seal" src="data:image/jpeg;base64,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" alt="Bingao National High School seal"><div><h1>BINGAO NATIONAL HIGH SCHOOL</h1><p>Online Wellness Leave Portal • School Year 2026–2027</p></div></div></header>
 <div class="wrap">
 <section id="setupCard" class="card login" style="display:none"><h2>Online setup required</h2><p class="muted">The portal is hosted, but Supabase is not configured yet. Edit <b>online-config.js</b> with your Supabase URL and browser-safe publishable key.</p></section>
 <section id="loginCard" class="card login" style="display:block">
@@ -49,7 +113,49 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 </form><div id="signupMsg"></div>
 </section>
 <section id="app" style="display:none">
-<div class="card"><div class="headrow"><div class="identity"><div class="muted">Signed in as</div><strong id="teacherName">Teacher</strong><div id="accountPosition" style="font-weight:700;color:#1769d2;margin-top:2px"></div><div id="accountEmail" class="muted"></div><div class="badges"><span class="badge" id="usedBadge">0/5 days used</span><span class="badge" id="remainBadge">5 remaining</span></div></div><button class="btn secondary" id="logoutBtn">Sign Out</button></div></div>
+<div class="portal-sidebar" id="portalSidebar">
+  <div class="portal-brand"><b>BNHS School Portal</b><span>School Year 2026–2027</span></div>
+  <div class="portal-nav-title">Main</div>
+  <button class="portal-nav-btn active" data-scroll="portalDashboard"><span class="portal-nav-icon">⌂</span>Dashboard</button>
+  <button class="portal-nav-btn" data-scroll="schoolAnnouncementsCard"><span class="portal-nav-icon">!</span>Announcements</button>
+  <button class="portal-nav-btn" data-scroll="leaveManagementCard"><span class="portal-nav-icon">L</span>Leave Management</button>
+  <button class="portal-nav-btn" data-scroll="schoolCalendarCard"><span class="portal-nav-icon">C</span>School Calendar</button>
+  <button class="portal-nav-btn" data-scroll="relieverManagementCard"><span class="portal-nav-icon">R</span>Relievers & Documents</button>
+  <button class="portal-nav-btn" data-scroll="myScheduleCard"><span class="portal-nav-icon">S</span>My Schedule</button>
+  <div class="portal-nav-title portal-management-nav">Management</div>
+  <button class="portal-nav-btn portal-role-management" data-scroll="principalDashboardCard"><span class="portal-nav-icon">P</span>Principal Dashboard</button>
+  <button class="portal-nav-btn portal-role-management" data-scroll="adminOfficerDashboardCard"><span class="portal-nav-icon">AO</span>Administrative Officer</button>
+  <button class="portal-nav-btn portal-role-management" data-scroll="staffAdminCard"><span class="portal-nav-icon">F</span>Faculty & Staff</button>
+  <button class="portal-nav-btn portal-role-management" data-scroll="scheduleAdminCard"><span class="portal-nav-icon">T</span>Schedules</button>
+  <button class="portal-nav-btn portal-role-admin" data-scroll="slotAdminCard"><span class="portal-nav-icon">A</span>Administration</button>
+</div>
+<div class="portal-main-offset">
+<div class="portal-mobile-nav" id="portalMobileNav">
+ <button data-scroll="portalDashboard">Dashboard</button><button data-scroll="leaveManagementCard">Leave</button><button data-scroll="schoolCalendarCard">Calendar</button><button data-scroll="relieverManagementCard">Relievers</button><button data-scroll="schoolAnnouncementsCard">Announcements</button>
+</div>
+<div class="portal-hero" id="portalDashboard">
+  <div class="portal-hero-top">
+    <div><div class="portal-kicker">Bingao National High School • School Operations Portal</div>
+      <h2 id="portalGreeting">Welcome to your school portal</h2>
+      <p id="portalRoleLine">Your school information and daily tools in one place.</p>
+    </div>
+    <div class="portal-year-wrap"><label>School Year</label><select id="portalSchoolYear"><option selected>2026–2027</option></select></div>
+  </div>
+  <div class="portal-metrics">
+    <div class="portal-metric"><div class="label" id="portalMetric1Label">Wellness Remaining</div><div class="value" id="portalMetric1">—</div><div class="sub" id="portalMetric1Sub">days available</div></div>
+    <div class="portal-metric"><div class="label" id="portalMetric2Label">On Leave Today</div><div class="value" id="portalMetric2">—</div><div class="sub" id="portalMetric2Sub">school-wide</div></div>
+    <div class="portal-metric"><div class="label" id="portalMetric3Label">Relief Assignments</div><div class="value" id="portalMetric3">—</div><div class="sub" id="portalMetric3Sub">saved assignments</div></div>
+    <div class="portal-metric"><div class="label" id="portalMetric4Label">Announcements</div><div class="value" id="portalMetric4">—</div><div class="sub" id="portalMetric4Sub">active notices</div></div>
+  </div>
+  <div class="portal-quick">
+    <button type="button" data-scroll="leaveManagementCard">+ Plot Leave</button>
+    <button type="button" data-scroll="schoolCalendarCard">View Calendar</button>
+    <button type="button" data-scroll="relieverManagementCard">Relieving & Documents</button>
+    <button type="button" data-scroll="schoolAnnouncementsCard">School Announcements</button>
+  </div>
+</div>
+<div class="portal-section-label">My Portal</div>
+<div class="card portal-profile-strip" id="portalProfileCard"><div class="headrow"><div class="identity"><div class="muted">Signed in as</div><strong id="teacherName">Teacher</strong><div id="accountPosition" style="font-weight:700;color:#1769d2;margin-top:2px"></div><div id="accountEmail" class="muted"></div><div class="badges"><span class="badge" id="usedBadge">0/5 days used</span><span class="badge" id="remainBadge">5 remaining</span></div></div><button class="btn secondary" id="logoutBtn">Sign Out</button></div></div>
 <div id="adminCollapseControls" class="card" style="display:none;padding:10px 14px">
   <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
     <button class="btn secondary" id="collapseAllAdminBtn">Hide All Sections</button>
@@ -64,13 +170,13 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
   <div id="schoolAnnouncements" style="margin-top:10px"></div>
 </div>
 
-<div class="card"><div class="plotbar">
+<div class="card" id="leaveManagementCard"><div class="plotbar">
 <div class="field"><label>Leave Type</label><select id="leaveType" style="padding:12px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px"><option value="wellness">Wellness Leave</option><option value="vacation">Vacation Leave</option></select></div>
 <div class="field"><label>Selected Leave Date</label><input id="leaveDate" type="date"></div>
 <button class="btn primary" id="plotBtn">Plot My Leave</button>
 </div>
 <div class="notice"><b>Wellness Leave rules:</b> maximum 5 days per teacher, maximum 3 consecutive school days, and maximum 2 Wellness Leave slots per date. Saturdays, Sundays, Summative Test dates, Term Exam dates, and designated post-Wellness-Break dates are unavailable.</div><div id="msg"></div></div>
-<div class="card"><div class="calendarHead"><div><h2 id="monthTitle" style="margin:0">Wellness Leave Calendar</h2><div class="muted">Click an available school day to select it.</div></div><div class="nav"><button class="btn secondary" id="prevBtn">‹ Previous</button><button class="btn secondary" id="todayBtn">Today</button><button class="btn secondary" id="nextBtn">Next ›</button></div></div><div class="calendarScroll"><div id="calendar" class="grid"></div></div><div id="adminCalendarActions" class="notice" style="display:none;margin-top:12px">
+<div class="card" id="schoolCalendarCard"><div class="calendarHead"><div><h2 id="monthTitle" style="margin:0">Wellness Leave Calendar</h2><div class="muted">Click an available school day to select it.</div></div><div class="nav"><button class="btn secondary" id="prevBtn">‹ Previous</button><button class="btn secondary" id="todayBtn">Today</button><button class="btn secondary" id="nextBtn">Next ›</button></div></div><div class="calendarScroll"><div id="calendar" class="grid"></div></div><div id="adminCalendarActions" class="notice" style="display:none;margin-top:12px">
   <div style="font-weight:800;margin-bottom:8px">Admin Calendar Actions — <span id="adminCalendarDateLabel"></span></div>
   <div class="plotbar">
     <div class="field" style="min-width:240px;flex:1"><label>Block Reason</label><input id="adminCalendarBlockReason" type="text" placeholder="e.g. Examination, School Activity, INSET"></div>
@@ -82,7 +188,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
   </div>
   <div id="adminCalendarActionMsg" style="margin-top:8px"></div>
 </div></div>
-<div class="card">
+<div class="card" id="relieverManagementCard">
   <div class="calendarHead">
     <div><h3 style="margin:0">Relieving Teachers by Leave Date</h3>
     <div class="muted">Choose any plotted Wellness Leave date. Relieving assignments are saved separately for every date.</div></div>
@@ -257,8 +363,9 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
   </div>
   <div id="resetAllLeavesMsg"></div>
 </div>
-<div class="card"><h3>My Schedule for Selected Date</h3><div id="myDaySchedule" class="tablewrap"></div></div>
-<div class="card"><h3>My Wellness Leave</h3><div id="myLeaves" class="tablewrap"></div></div>
+<div class="card" id="myScheduleCard"><h3>My Schedule for Selected Date</h3><div id="myDaySchedule" class="tablewrap"></div></div>
+<div class="card" id="myLeaveHistoryCard"><h3>My Leave History</h3><div id="myLeaves" class="tablewrap"></div></div>
+</div>
 </section>
 </div>
 <script>
@@ -490,6 +597,55 @@ function subscribe(){
   .on('postgres_changes',{event:'*',schema:'public',table:'wellness_portal_announcements'},()=>refresh())
   .subscribe()
 }
+function setupPortalNavigation(){
+ document.querySelectorAll('[data-scroll]').forEach(btn=>{
+  if(btn.dataset.portalBound==='1')return;
+  btn.dataset.portalBound='1';
+  btn.addEventListener('click',()=>{
+   const id=btn.getAttribute('data-scroll'),el=document.getElementById(id);
+   if(el&&getComputedStyle(el).display!=='none'){
+    el.scrollIntoView({behavior:'smooth',block:'start'});
+    document.querySelectorAll('.portal-nav-btn').forEach(x=>x.classList.toggle('active',x===btn));
+   }
+  });
+ });
+}
+function renderPortalDashboard(){
+ if(!profile||!user)return;
+ document.body.classList.add('portal-logged-in');
+ setupPortalNavigation();
+ const name=profile.teacher_name||'User';
+ const roleLabel=profile.role==='principal'?'SCHOOL PRINCIPAL':profile.role==='administrative_officer'?'ADMINISTRATIVE OFFICER':profile.role==='admin'?'SYSTEM ADMINISTRATOR':'TEACHER';
+ const hour=new Date().getHours(),greet=hour<12?'Good morning':hour<18?'Good afternoon':'Good evening';
+ if($('portalGreeting'))$('portalGreeting').textContent=greet+', '+name.split(' ')[0]+'.';
+ if($('portalRoleLine'))$('portalRoleLine').textContent=roleLabel+' • School Year 2026–2027';
+ const mine=leaves.filter(x=>x.user_id===user.id);
+ const wellnessUsed=mine.filter(x=>x.leave_type==='wellness').length;
+ const onLeaveToday=leaves.filter(x=>x.leave_date===today()).length;
+ const myRelief=assignments.filter(x=>String(x.reliever_teacher_name||'').toUpperCase()===String(name).toUpperCase()).length;
+ const activeStaff=staff.filter(x=>x.active!==false).length;
+ const isLeader=['admin','principal','administrative_officer'].includes(profile.role);
+ const m1=$('portalMetric1'),m2=$('portalMetric2'),m3=$('portalMetric3'),m4=$('portalMetric4');
+ if(m1)m1.textContent=isLeader?activeStaff:Math.max(0,5-wellnessUsed);
+ if($('portalMetric1Label'))$('portalMetric1Label').textContent=isLeader?'Active Staff':'Wellness Remaining';
+ if($('portalMetric1Sub'))$('portalMetric1Sub').textContent=isLeader?'faculty and employees':'of 5 days';
+ if(m2)m2.textContent=onLeaveToday;
+ if(m3)m3.textContent=isLeader?assignments.length:myRelief;
+ if($('portalMetric3Sub'))$('portalMetric3Sub').textContent=isLeader?'school-wide saved assignments':'times assigned as reliever';
+ if(m4)m4.textContent=announcements.filter(x=>x.active!==false).length;
+ document.querySelectorAll('.portal-role-management').forEach(el=>{
+   let show=false;
+   const target=el.getAttribute('data-scroll');
+   if(target==='principalDashboardCard')show=profile.role==='principal'||profile.role==='admin';
+   else if(target==='adminOfficerDashboardCard')show=profile.role==='administrative_officer'||profile.role==='admin';
+   else show=profile.role==='admin'||profile.role==='administrative_officer';
+   el.style.display=show?'flex':'none';
+ });
+ document.querySelectorAll('.portal-role-admin').forEach(el=>el.style.display=profile.role==='admin'?'flex':'none');
+ const mg=document.querySelector('.portal-management-nav');
+ if(mg)mg.style.display=isLeader?'block':'none';
+}
+
 function render(){
  const mine=leaves.filter(x=>x.user_id===user.id).sort((a,b)=>a.leave_date.localeCompare(b.leave_date));
  const wellnessMine=mine.filter(x=>x.leave_type==='wellness');
@@ -499,6 +655,7 @@ function render(){
  renderLeaveDateSelector(mine);
  renderCalendar();renderRelievers();renderMyDaySchedule();renderSchoolAnnouncements();if(profile.role==='admin'){renderStaffAdmin();renderAdminScheduleList();renderSlotManager();renderBlockedDatesAdmin();}if(profile.role==='principal'||profile.role==='admin'){renderPrincipalDashboard();}if(profile.role==='administrative_officer'||profile.role==='admin'){renderAdminOfficerDashboard();}
  $('myLeaves').innerHTML=mine.length?'<table><tr><th>Date</th><th>Leave Type</th><th>Day</th><th>Action</th></tr>'+mine.map(x=>'<tr><td><b>'+esc(x.leave_date)+'</b></td><td><span class="badge">'+(x.leave_type==='vacation'?'VACATION LEAVE':'WELLNESS LEAVE')+'</span></td><td>'+new Date(x.leave_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'})+'</td><td>'+(x.leave_type==='wellness'?'<button class="btn primary" data-download-relieving="'+x.leave_date+'" type="button">Download Relieving Document</button><span class="downloadStatus" style="margin-left:8px;font-size:12px"></span> ':'')+'<button class="btn danger" onclick="removeLeave('+x.id+')">Remove</button></td></tr>').join('')+'</table>':'<p class="muted">You have not plotted any leave yet.</p>';
+ renderPortalDashboard();
  bindRelievingDownloadButtons();
 }
 function renderBlockedDatesAdmin(){
