@@ -654,7 +654,7 @@ body.portal-logged-in .top{position:sticky;top:0;z-index:45;box-shadow:0 4px 20p
 <noscript><div style="max-width:760px;margin:20px auto;padding:16px;background:#fff1f2;border:1px solid #fecdd3;border-radius:12px;color:#9f1239;font-family:Arial">JavaScript is required to open the BNHS Wellness Leave Portal.</div></noscript>
 <script src="online-config.js"></script>
 <script>
-const PORTAL_BUILD_ID='2026-11-26-2325';
+const PORTAL_BUILD_ID='2026-11-26-2340';
 const cfg=window.BNHS_ONLINE_CONFIG||{};let sb=null,user=null,profile=null,profiles={},leaves=[],schedules=[],assignments=[],staff=[],activationStatus={},activationCodes={},slotOverrides={},announcements=[],principalSummary={},blockedDates={},pendingRelieverSelections={},cursor=new Date();cursor.setDate(1);
 const $=id=>document.getElementById(id),iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'),today=()=>iso(new Date());
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -710,7 +710,21 @@ async function start(){
  const {data:{session}}=await sb.auth.getSession();if(session)await enter(session.user);else $('loginCard').style.display='block';
  sb.auth.onAuthStateChange(async(e,s)=>{if(e==='SIGNED_OUT')location.reload();else if(s?.user&&(!user||user.id!==s.user.id))await enter(s.user)})
 }
-$('loginForm').addEventListener('submit',async e=>{e.preventDefault();$('loginMsg').innerHTML='';const {data,error}=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error)$('loginMsg').innerHTML='<div class="notice err">'+esc(error.message)+'</div>';else if(data.user)await enter(data.user)});
+$('loginForm').addEventListener('submit',async e=>{
+ e.preventDefault();
+ if($('loginMsg'))$('loginMsg').innerHTML='';
+ try{
+   const {data,error}=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});
+   if(error){
+     if($('loginMsg'))$('loginMsg').innerHTML='<div class="notice err">'+esc(error.message)+'</div>';
+     return;
+   }
+   if(data?.user)await enter(data.user);
+ }catch(err){
+   console.error('Login flow error:',err);
+   if($('loginMsg'))$('loginMsg').innerHTML='<div class="notice err">Login succeeded but the portal encountered a display error. Please refresh once and sign in again.</div>';
+ }
+});
 $('signupForm').addEventListener('submit',async e=>{
  e.preventDefault();
  $('signupMsg').innerHTML='';
@@ -738,16 +752,44 @@ $('signupForm').addEventListener('submit',async e=>{
  }
 });
 async function enter(u){
- user=u;const {data:p,error}=await sb.from('wellness_portal_profiles').select('user_id,teacher_name,role,active').eq('user_id',u.id).single();
+ user=u;
+ const {data:p,error}=await sb.from('wellness_portal_profiles').select('user_id,teacher_name,role,active').eq('user_id',u.id).single();
  if(error||!p||!p.active){
    console.error('Profile load error',error);
    await sb.auth.signOut();
-   $('loginCard').style.display='block';
-   $('loginMsg').innerHTML='<div class="notice err">'+(error?'Login succeeded, but the teacher profile could not be loaded. Please refresh and try again.':'Your account is not linked to an active BNHS teacher profile. Please contact the administrator.')+'</div>';
-   return
+   if($('loginCard'))$('loginCard').style.display='block';
+   if($('loginMsg'))$('loginMsg').innerHTML='<div class="notice err">'+(error?'Login succeeded, but the teacher profile could not be loaded. Please refresh and try again.':'Your account is not linked to an active BNHS teacher profile. Please contact the administrator.')+'</div>';
+   return;
  }
- profile=p;$('loginCard').style.display='none';$('app').style.display='block';setupCollapsibleAdminSections();$('teacherName').textContent=p.teacher_name;$('accountPosition').textContent=p.role==='principal'?'SCHOOL PRINCIPAL':p.role==='administrative_officer'?'ADMINISTRATIVE OFFICER':p.role==='admin'?'SYSTEM ADMINISTRATOR':'';$('accountEmail').textContent=u.email||'';$('leaveDate').value=today();cursor=new Date();cursor.setDate(1);$('adminCollapseControls').style.display=['admin','principal','administrative_officer'].includes(p.role)?'block':'none';$('principalDashboardCard').style.display=(p.role==='principal'||p.role==='admin')?'block':'none';$('adminOfficerDashboardCard').style.display=(p.role==='administrative_officer'||p.role==='admin')?'block':'none';$('scheduleAdminCard').style.display=(p.role==='admin'||p.role==='administrative_officer')?'block':'none';$('staffAdminCard').style.display=(p.role==='admin'||p.role==='administrative_officer')?'block':'none';$('slotAdminCard').style.display=p.role==='admin'?'block':'none';$('blockedDatesAdminCard').style.display=p.role==='admin'?'block':'none';$('adminResetCard').style.display=p.role==='admin'?'block':'none';await refresh();subscribe()
+ profile=p;
+ if($('loginCard'))$('loginCard').style.display='none';
+ if($('app'))$('app').style.display='block';
+ try{setupCollapsibleAdminSections()}catch(e){console.error('Collapsible setup error',e)}
+ if($('teacherName'))$('teacherName').textContent=p.teacher_name;
+ if($('accountPosition'))$('accountPosition').textContent=p.role==='principal'?'SCHOOL PRINCIPAL':p.role==='administrative_officer'?'ADMINISTRATIVE OFFICER':p.role==='admin'?'SYSTEM ADMINISTRATOR':'';
+ if($('accountEmail'))$('accountEmail').textContent=u.email||'';
+ if($('leaveDate'))$('leaveDate').value=today();
+ cursor=new Date();cursor.setDate(1);
+
+ const show=(id,yes)=>{const el=$(id);if(el)el.style.display=yes?'block':'none'};
+ show('adminCollapseControls',['admin','principal','administrative_officer'].includes(p.role));
+ show('principalDashboardCard',p.role==='principal'||p.role==='admin');
+ show('adminOfficerDashboardCard',p.role==='administrative_officer'||p.role==='admin');
+ show('scheduleAdminCard',p.role==='admin'||p.role==='administrative_officer');
+ show('staffAdminCard',p.role==='admin'||p.role==='administrative_officer');
+ show('slotAdminCard',p.role==='admin');
+ show('blockedDatesAdminCard',p.role==='admin');
+ show('adminResetCard',p.role==='admin');
+
+ try{
+   await refresh();
+ }catch(refreshError){
+   console.error('Portal refresh error after login:',refreshError);
+   if($('msg'))$('msg').innerHTML='<div class="notice err"><b>You are signed in.</b> Some dashboard content could not load. Use the menu or refresh the page.</div>';
+ }
+ try{subscribe()}catch(e){console.error('Realtime subscribe error',e)}
 }
+
 async function refresh(){
  const [
   {data:ps,error:pe},
@@ -2136,7 +2178,7 @@ $('officialMemoFile')?.addEventListener('change',function(){
 
 let memoLightboxItems=[],memoLightboxIndex=0;
 function collectMemoLightboxItems(memoId){
- return [...document.querySelectorAll('.memo-image-link[data-memo-id="'+CSS.escape(String(memoId))+'"]')].map(el=>({
+ return [...document.querySelectorAll('.memo-image-link')].filter(el=>String(el.dataset.memoId)===String(memoId)).map(el=>({
    url:el.dataset.memoImage,
    name:el.dataset.memoName||'Memo image'
  }));
