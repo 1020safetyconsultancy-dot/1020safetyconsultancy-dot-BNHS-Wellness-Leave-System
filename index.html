@@ -116,6 +116,17 @@ body.portal-logged-in .top{position:sticky;top:0;z-index:45;box-shadow:0 4px 20p
 .document-list{margin-top:14px}
 @media(max-width:760px){.document-grid{grid-template-columns:1fr}}
 
+
+/* ===== Dashboard Official Memos ===== */
+.dashboard-memo-card{border-left:5px solid #f2b84b!important;background:linear-gradient(145deg,#fffdf7,#ffffff)}
+.dashboard-memo-list{display:grid;gap:10px;margin-top:12px}
+.dashboard-memo-item{border:1px solid #e6edf5;border-radius:14px;padding:13px 14px;background:white}
+.dashboard-memo-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.dashboard-memo-title{font-weight:900;color:#173b60}
+.dashboard-memo-meta{font-size:11px;color:#718399;margin-top:3px}
+.dashboard-memo-text{margin-top:8px;color:#334155;line-height:1.5;font-size:13px;white-space:pre-wrap}
+.dashboard-memo-pin{font-size:10px;font-weight:900;letter-spacing:.8px;color:#9a6a00;background:#fff4cf;border-radius:999px;padding:5px 8px;white-space:nowrap}
+
 </style>
 </head>
 <body>
@@ -183,6 +194,16 @@ body.portal-logged-in .top{position:sticky;top:0;z-index:45;box-shadow:0 4px 20p
 </div>
 <div class="portal-section-label" id="portalSectionLabel">My Portal</div>
 <div class="card portal-profile-strip" id="portalProfileCard"><div class="headrow"><div class="identity"><div class="muted">Signed in as</div><strong id="teacherName">Teacher</strong><div id="accountPosition" style="font-weight:700;color:#1769d2;margin-top:2px"></div><div id="accountEmail" class="muted"></div><div class="badges"><span class="badge" id="usedBadge">0/5 days used</span><span class="badge" id="remainBadge">5 remaining</span></div></div><button class="btn secondary" id="logoutBtn">Sign Out</button></div></div>
+<div class="card dashboard-memo-card" id="dashboardMemosCard">
+  <div class="calendarHead">
+    <div>
+      <h3 style="margin:0">Latest Official Memos</h3>
+      <div class="muted">Important notices posted by the School Principal or System Administrator.</div>
+    </div>
+    <button class="btn secondary" type="button" data-module="announcements">View All Memos</button>
+  </div>
+  <div id="dashboardMemos" class="dashboard-memo-list"></div>
+</div>
 <div id="adminCollapseControls" class="card" style="display:none;padding:10px 14px">
   <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
     <button class="btn secondary" id="collapseAllAdminBtn">Hide All Sections</button>
@@ -656,7 +677,7 @@ function subscribe(){
 }
 let activePortalModule='dashboard';
 const PORTAL_MODULES={
- dashboard:{title:'Dashboard',description:'Your school overview, profile, quick actions, and latest announcements.',ids:['portalDashboard','portalProfileCard','schoolAnnouncementsCard']},
+ dashboard:{title:'Dashboard',description:'Your school overview, profile, quick actions, and latest official memos.',ids:['portalDashboard','portalProfileCard','dashboardMemosCard']},
  announcements:{title:'Announcements & Memos',description:'Read the latest school notices and official announcements.',ids:['schoolAnnouncementsCard']},
  leave:{title:'Leave Management',description:'Plot Wellness or Vacation Leave and review your leave history.',ids:['leaveManagementCard','myLeaveHistoryCard']},
  calendar:{title:'School Calendar',description:'View leave availability, blocked dates, and Admin date controls.',ids:['schoolCalendarCard','blockedDatesAdminCard']},
@@ -752,6 +773,20 @@ function renderPortalDashboard(){
  showPortalModule(portalModuleAllowed(saved)?saved:'dashboard',{keepScroll:true});
 }
 
+function renderDashboardMemos(){
+ const box=$('dashboardMemos');if(!box)return;
+ const rows=(announcements||[]).filter(x=>x.active!==false).slice(0,5);
+ if(!rows.length){
+   box.innerHTML='<div class="notice">No official memo has been posted yet.</div>';
+   return;
+ }
+ box.innerHTML=rows.map((x,i)=>{
+   const dt=x.created_at?new Date(x.created_at).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}):'';
+   const who=x.posted_by_name||'School Administration';
+   return '<div class="dashboard-memo-item"><div class="dashboard-memo-top"><div><div class="dashboard-memo-title">Official Memo / Announcement</div><div class="dashboard-memo-meta">Posted by '+esc(who)+(dt?' • '+esc(dt):'')+'</div></div>'+(i===0?'<span class="dashboard-memo-pin">LATEST</span>':'')+'</div><div class="dashboard-memo-text">'+esc(x.message||'')+'</div></div>';
+ }).join('');
+}
+
 function render(){
  const mine=leaves.filter(x=>x.user_id===user.id).sort((a,b)=>a.leave_date.localeCompare(b.leave_date));
  const wellnessMine=mine.filter(x=>x.leave_type==='wellness');
@@ -759,7 +794,7 @@ function render(){
  $('usedBadge').textContent=wellnessMine.length+'/5 Wellness days used';
  $('remainBadge').textContent=Math.max(0,5-wellnessMine.length)+' Wellness remaining';
  renderLeaveDateSelector(mine);
- renderCalendar();renderRelievers();renderMyDaySchedule();renderSchoolAnnouncements();renderDocumentCenter();if(profile.role==='admin'){renderStaffAdmin();renderAdminScheduleList();renderSlotManager();renderBlockedDatesAdmin();}if(profile.role==='principal'||profile.role==='admin'){renderPrincipalDashboard();}if(profile.role==='administrative_officer'||profile.role==='admin'){renderAdminOfficerDashboard();}
+ renderCalendar();renderRelievers();renderMyDaySchedule();renderSchoolAnnouncements();renderDashboardMemos();renderDocumentCenter();if(profile.role==='admin'){renderStaffAdmin();renderAdminScheduleList();renderSlotManager();renderBlockedDatesAdmin();}if(profile.role==='principal'||profile.role==='admin'){renderPrincipalDashboard();}if(profile.role==='administrative_officer'||profile.role==='admin'){renderAdminOfficerDashboard();}
  $('myLeaves').innerHTML=mine.length?'<table><tr><th>Date</th><th>Leave Type</th><th>Day</th><th>Action</th></tr>'+mine.map(x=>'<tr><td><b>'+esc(x.leave_date)+'</b></td><td><span class="badge">'+(x.leave_type==='vacation'?'VACATION LEAVE':'WELLNESS LEAVE')+'</span></td><td>'+new Date(x.leave_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'})+'</td><td>'+(x.leave_type==='wellness'?'<button class="btn primary" data-download-relieving="'+x.leave_date+'" type="button">Download Relieving Document</button><span class="downloadStatus" style="margin-left:8px;font-size:12px"></span> ':'')+'<button class="btn danger" onclick="removeLeave('+x.id+')">Remove</button></td></tr>').join('')+'</table>':'<p class="muted">You have not plotted any leave yet.</p>';
  renderPortalDashboard();
  bindRelievingDownloadButtons();
