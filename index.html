@@ -986,16 +986,25 @@ async function postOfficialMemo(){
  }
  const btn=$('officialMemoPostBtn');
  if(btn){btn.disabled=true;btn.textContent='Posting…'}
- const uploaded=[];
+ let uploaded=[];
  try{
-   for(let i=0;i<files.length;i++){
-     const file=files[i];
-     const ext=(file.name.split('.').pop()||'file').toLowerCase().replace(/[^a-z0-9]/g,'');
-     const safeBase=(file.name.replace(/\.[^.]+$/,'').replace(/[^a-zA-Z0-9_-]+/g,'_').slice(0,50)||'memo');
-     const path=user.id+'/'+Date.now()+'_'+i+'_'+safeBase+'.'+ext;
-     const up=await sb.storage.from('official-memos').upload(path,file,{contentType:file.type,upsert:false});
-     if(up.error)throw up.error;
-     uploaded.push({path,name:file.name,type:file.type});
+   if(files.length){
+     const {data:{session}}=await sb.auth.getSession();
+     if(!session?.access_token)throw new Error('Your session expired. Please sign in again.');
+     const form=new FormData();
+     files.forEach(file=>form.append('files',file,file.name));
+     const resp=await fetch(cfg.supabaseUrl+'/functions/v1/memo-upload',{
+       method:'POST',
+       headers:{
+         'Authorization':'Bearer '+session.access_token,
+         'apikey':cfg.supabasePublishableKey
+       },
+       body:form
+     });
+     const out=await resp.json().catch(()=>({}));
+     if(!resp.ok)throw new Error(out.error||'Attachment upload failed.');
+     uploaded=Array.isArray(out.attachments)?out.attachments:[];
+     if(uploaded.length!==files.length)throw new Error('Some memo attachments did not upload correctly.');
    }
    const first=uploaded[0]||null;
    const {error}=await sb.from('wellness_portal_announcements').insert({
@@ -1008,18 +1017,14 @@ async function postOfficialMemo(){
      attachment_type:first?.type||null,
      attachments:uploaded
    });
-   if(error){
-     if(uploaded.length)await sb.storage.from('official-memos').remove(uploaded.map(x=>x.path)).catch(()=>{});
-     throw error;
-   }
+   if(error)throw error;
    const wrap=$('officialMemoMessages');
    if(wrap)wrap.innerHTML='<div class="official-memo-message-row" style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px"><textarea class="officialMemoMessage" rows="3" placeholder="Message 1..." style="width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:10px;font-size:14px;resize:vertical"></textarea></div>';
    if(fileInput)fileInput.value='';
    if($('officialMemoFilePreview'))$('officialMemoFilePreview').innerHTML='';
-   if($('officialMemoMsg'))$('officialMemoMsg').innerHTML='<div class="notice ok">Official memo posted with '+uploaded.length+' attachment(s).</div>';
+   if($('officialMemoMsg'))$('officialMemoMsg').innerHTML='<div class="notice ok">Official memo posted'+(uploaded.length?' with '+uploaded.length+' attachment(s)':'')+'.</div>';
    await refresh();
  }catch(error){
-   if(uploaded.length)await sb.storage.from('official-memos').remove(uploaded.map(x=>x.path)).catch(()=>{});
    if($('officialMemoMsg'))$('officialMemoMsg').innerHTML='<div class="notice err">'+esc(error?.message||'The memo could not be posted.')+'</div>';
  }finally{
    if(btn){btn.disabled=false;btn.textContent='Post Memo'}
@@ -1681,13 +1686,13 @@ function buildTeacherLeaveBalanceTable(){
 function renderPrincipalDashboard(){
  if(!(profile?.role==='principal'||profile?.role==='admin'))return;
 
+ const todayStr=today();
+ const todayLeaves=leaves.filter(l=>l.leave_date===todayStr);
  $('principalTotalStaff').textContent=principalSummary.total_staff??staff.filter(x=>x.active).length;
- $('principalOnLeave').textContent=principalSummary.on_leave_today??0;
- $('principalWellnessToday').textContent=principalSummary.wellness_today??0;
+ $('principalOnLeave').textContent=principalSummary.on_leave_today??todayLeaves.length;
+ $('principalWellnessToday').textContent=principalSummary.wellness_today??todayLeaves.filter(l=>l.leave_type==='wellness').length;
  $('principalVacationToday').textContent=todayLeaves.filter(l=>l.leave_type==='vacation').length;
  $('principalUncovered').textContent=principalSummary.uncovered_classes??0;
-
- const todayStr=today();
  const upcoming=leaves.filter(l=>l.leave_date>=todayStr).sort((a,b)=>a.leave_date.localeCompare(b.leave_date));
 
  $('principalLeaveBalance').innerHTML=buildTeacherLeaveBalanceTable();
